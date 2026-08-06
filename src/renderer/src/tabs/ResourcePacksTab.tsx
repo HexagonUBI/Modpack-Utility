@@ -23,6 +23,7 @@ import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import type { ResourcePackEntry, ResourcePackReport } from '@shared/types'
 import { formatBytes } from '../format'
 import EmptyState from '../components/EmptyState'
+import { useT, type Messages } from '../i18n'
 
 interface ResourcePacksTabProps {
   report: ResourcePackReport
@@ -39,6 +40,7 @@ export default function ResourcePacksTab({
   onPurge,
   onToggleEnabled
 }: ResourcePacksTabProps) {
+  const t = useT()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
 
@@ -55,8 +57,8 @@ export default function ResourcePacksTab({
     return (
       <EmptyState
         icon={<ImageOutlined sx={{ fontSize: 40, color: 'text.secondary' }} />}
-        title="No resource packs folder"
-        detail="This instance has no resourcepacks directory yet."
+        title={t.packs.noFolder}
+        detail={t.packs.noFolderDetail}
       />
     )
   }
@@ -65,8 +67,8 @@ export default function ResourcePacksTab({
     return (
       <EmptyState
         icon={<ImageOutlined sx={{ fontSize: 40, color: 'text.secondary' }} />}
-        title="No resource packs installed"
-        detail="Packs you add to the instance will be listed here with their size and load order."
+        title={t.packs.noneInstalled}
+        detail={t.packs.noneInstalledDetail}
       />
     )
   }
@@ -83,18 +85,26 @@ export default function ResourcePacksTab({
   return (
     <Stack spacing={2}>
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-        <SummaryTile label="Installed" value={String(report.packs.length)} detail="packs on disk" />
         <SummaryTile
-          label="Active"
+          label={t.packs.installed}
+          value={String(report.packs.length)}
+          detail={t.packs.packsOnDisk}
+        />
+        <SummaryTile
+          label={t.packs.active}
           value={String(report.packs.length - inactive.length)}
-          detail={`${formatBytes(report.enabledBytes)} loaded`}
+          detail={t.packs.loaded(formatBytes(report.enabledBytes, t))}
         />
         <SummaryTile
-          label="Not in use"
+          label={t.packs.notInUse}
           value={String(inactive.length)}
-          detail={`${formatBytes(report.totalBytes - report.enabledBytes)} idle`}
+          detail={t.packs.idle(formatBytes(report.totalBytes - report.enabledBytes, t))}
         />
-        <SummaryTile label="Total size" value={formatBytes(report.totalBytes)} detail="whole folder" />
+        <SummaryTile
+          label={t.packs.totalSize}
+          value={formatBytes(report.totalBytes, t)}
+          detail={t.packs.wholeFolder}
+        />
       </Box>
 
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
@@ -104,11 +114,11 @@ export default function ResourcePacksTab({
           disabled={inactive.length === 0}
           onClick={() => setSelected(new Set(inactive.map((pack) => pack.path)))}
         >
-          Select inactive ({inactive.length})
+          {t.packs.selectInactive(inactive.length)}
         </Button>
         {selected.size > 0 && (
           <Button size="small" onClick={() => setSelected(new Set())}>
-            Clear selection
+            {t.common.clearSelection}
           </Button>
         )}
       </Stack>
@@ -126,11 +136,11 @@ export default function ResourcePacksTab({
               disabled={busy}
               onClick={() => setConfirming(true)}
             >
-              Move to recycle bin
+              {t.common.moveToRecycleBin}
             </Button>
           }
         >
-          {selected.size} selected, {formatBytes(selectedBytes)}
+          {t.common.selected(selected.size, formatBytes(selectedBytes, t))}
         </Alert>
       )}
 
@@ -139,6 +149,7 @@ export default function ResourcePacksTab({
           <PackRow
             key={pack.path}
             pack={pack}
+            t={t}
             selected={selected.has(pack.path)}
             busy={busy}
             onToggle={() => toggle(pack.path)}
@@ -149,25 +160,24 @@ export default function ResourcePacksTab({
       </Stack>
 
       <Dialog open={confirming} onClose={() => setConfirming(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Move {selected.size} resource packs to the recycle bin?</DialogTitle>
+        <DialogTitle>{t.packs.purgeTitle(selected.size)}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            This frees {formatBytes(selectedBytes)}. Nothing is deleted permanently.
+            {t.packs.purgeDetail(formatBytes(selectedBytes, t))}
           </DialogContentText>
           {selectedPacks.map((pack) => (
             <Typography key={pack.path} variant="body2" sx={{ fontFamily: 'ui-monospace, monospace' }}>
-              {pack.name}
-              {pack.enabled ? '  (currently active)' : ''}
+              {t.packs.purgeEntry(pack.name, pack.enabled)}
             </Typography>
           ))}
           {selectedPacks.some((pack) => pack.enabled) && (
             <Alert severity="warning" sx={{ mt: 2 }}>
-              Some of these are active in the game right now. Removing them changes how the instance looks.
+              {t.packs.activeWarning}
             </Alert>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirming(false)}>Cancel</Button>
+          <Button onClick={() => setConfirming(false)}>{t.common.cancel}</Button>
           <Button
             color="error"
             variant="contained"
@@ -176,7 +186,7 @@ export default function ResourcePacksTab({
               onPurge(selectedPacks.map((pack) => pack.path))
             }}
           >
-            Move to recycle bin
+            {t.common.moveToRecycleBin}
           </Button>
         </DialogActions>
       </Dialog>
@@ -186,6 +196,7 @@ export default function ResourcePacksTab({
 
 interface PackRowProps {
   pack: ResourcePackEntry
+  t: Messages
   selected: boolean
   busy: boolean
   onToggle: () => void
@@ -193,7 +204,7 @@ interface PackRowProps {
   onReveal: (path: string) => void
 }
 
-function PackRow({ pack, selected, busy, onToggle, onToggleEnabled, onReveal }: PackRowProps) {
+function PackRow({ pack, t, selected, busy, onToggle, onToggleEnabled, onReveal }: PackRowProps) {
   return (
     <Stack
       direction="row"
@@ -223,11 +234,16 @@ function PackRow({ pack, selected, busy, onToggle, onToggleEnabled, onReveal }: 
             {pack.name}
           </Typography>
           {pack.enabled ? (
-            <Chip size="small" color="success" variant="outlined" label={`Active #${(pack.order ?? 0) + 1}`} />
+            <Chip
+              size="small"
+              color="success"
+              variant="outlined"
+              label={t.packs.activeAt((pack.order ?? 0) + 1)}
+            />
           ) : (
-            <Chip size="small" variant="outlined" label="Not in use" />
+            <Chip size="small" variant="outlined" label={t.packs.notInUse} />
           )}
-          {pack.isDirectory && <Chip size="small" variant="outlined" label="Folder" />}
+          {pack.isDirectory && <Chip size="small" variant="outlined" label={t.packs.folder} />}
         </Stack>
         {pack.description && (
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
@@ -237,21 +253,21 @@ function PackRow({ pack, selected, busy, onToggle, onToggleEnabled, onReveal }: 
       </Box>
 
       <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
-        {formatBytes(pack.sizeBytes)}
+        {formatBytes(pack.sizeBytes, t)}
       </Typography>
 
       {}
-      <Tooltip title={pack.enabled ? 'Turn off in game' : 'Turn on in game'}>
+      <Tooltip title={pack.enabled ? t.packs.turnOffInGame : t.packs.turnOnInGame}>
         <Switch
           size="small"
           checked={pack.enabled}
           disabled={busy}
           onChange={(event) => onToggleEnabled(pack.name, event.target.checked)}
-          slotProps={{ input: { 'aria-label': `Enable ${pack.name}` } }}
+          slotProps={{ input: { 'aria-label': t.packs.enablePack(pack.name) } }}
         />
       </Tooltip>
 
-      <Tooltip title="Show in folder">
+      <Tooltip title={t.common.showInFolder}>
         <IconButton size="small" onClick={() => onReveal(pack.path)}>
           <FolderOpenRounded fontSize="small" />
         </IconButton>

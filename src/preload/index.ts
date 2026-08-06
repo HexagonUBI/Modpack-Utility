@@ -3,6 +3,7 @@ import type {
   AppSettings,
   ConfigDocument,
   ConfigWriteResult,
+  ContentResult,
   Instance,
   InstanceAnalysis,
   InstanceSize,
@@ -18,7 +19,8 @@ import type {
 const api = {
   scanInstances: (): Promise<Instance[]> => ipcRenderer.invoke('instances:scan'),
 
-  addFolder: (): Promise<Instance[]> => ipcRenderer.invoke('instances:pickFolder'),
+  addFolder: (title: string): Promise<Instance[]> =>
+    ipcRenderer.invoke('instances:pickFolder', title),
 
   instanceSizes: (targets: Array<{ id: string; name: string; path: string }>): Promise<InstanceSize[]> =>
     ipcRenderer.invoke('instances:sizes', targets),
@@ -52,10 +54,10 @@ const api = {
   thumbnails: (paths: string[]): Promise<Record<string, string>> =>
     ipcRenderer.invoke('instance:thumbnails', paths),
 
-  setModEnabled: (path: string, enabled: boolean): Promise<string> =>
+  setModEnabled: (path: string, enabled: boolean): Promise<ContentResult> =>
     ipcRenderer.invoke('mods:setEnabled', { path, enabled }),
 
-  setPackEnabled: (gameDir: string, name: string, enabled: boolean): Promise<void> =>
+  setPackEnabled: (gameDir: string, name: string, enabled: boolean): Promise<ContentResult> =>
     ipcRenderer.invoke('packs:setEnabled', { gameDir, name, enabled }),
 
   trash: (paths: string[]): Promise<TrashResult[]> => ipcRenderer.invoke('files:trash', paths),

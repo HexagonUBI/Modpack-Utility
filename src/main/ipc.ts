@@ -4,6 +4,7 @@ import type {
   AppSettings,
   ConfigDocument,
   ConfigWriteResult,
+  ContentResult,
   Instance,
   InstanceAnalysis,
   InstanceSize,
@@ -79,7 +80,7 @@ export function registerIpcHandlers(): void {
     const known = await scanKnownLaunchers((launcher, current, total) => {
       event.sender.send(CHANNELS.progress, {
         phase: 'launchers',
-        message: `Checking ${launcher}`,
+        launcher,
         current,
         total
       } satisfies ScanProgress)
@@ -116,8 +117,8 @@ export function registerIpcHandlers(): void {
 
       completed++
       event.sender.send(CHANNELS.progress, {
-        phase: 'storage',
-        message: `${target.name} (${completed} of ${targets.length})`,
+        phase: 'instances',
+        name: target.name,
         current: completed,
         total: targets.length
       } satisfies ScanProgress)
@@ -132,11 +133,12 @@ export function registerIpcHandlers(): void {
     writeSettings(patch)
   )
 
-  ipcMain.handle(CHANNELS.pickFolder, async (event): Promise<Instance[]> => {
+  ipcMain.handle(CHANNELS.pickFolder, async (event, title: unknown): Promise<Instance[]> => {
+    const options = pickFolderOptions(typeof title === 'string' ? title : '')
     const window = BrowserWindow.fromWebContents(event.sender)
     const result = window
-      ? await dialog.showOpenDialog(window, pickFolderOptions())
-      : await dialog.showOpenDialog(pickFolderOptions())
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options)
 
     if (result.canceled || result.filePaths.length === 0) return []
 
@@ -162,8 +164,8 @@ export function registerIpcHandlers(): void {
     return analyseStorage(requireAbsolutePath(rootPath), {
       onProgress: (filesScanned, relativePath) => {
         event.sender.send(CHANNELS.progress, {
-          phase: 'storage',
-          message: `${relativePath} (${filesScanned.toLocaleString('en-US')} files)`,
+          phase: 'files',
+          relativePath,
           current: filesScanned,
           total: 0
         } satisfies ScanProgress)
@@ -194,19 +196,19 @@ export function registerIpcHandlers(): void {
     )
   })
 
-  ipcMain.handle(CHANNELS.setModEnabled, async (_event, request: unknown): Promise<string> => {
+  ipcMain.handle(CHANNELS.setModEnabled, async (_event, request: unknown): Promise<ContentResult> => {
     if (typeof request !== 'object' || request === null) throw new Error('Expected a request')
     const record = request as Record<string, unknown>
     return setModEnabled(requireAbsolutePath(record['path']), record['enabled'] === true)
   })
 
-  ipcMain.handle(CHANNELS.setPackEnabled, async (_event, request: unknown): Promise<void> => {
+  ipcMain.handle(CHANNELS.setPackEnabled, async (_event, request: unknown): Promise<ContentResult> => {
     if (typeof request !== 'object' || request === null) throw new Error('Expected a request')
     const record = request as Record<string, unknown>
     const name = record['name']
     if (typeof name !== 'string' || name.length === 0) throw new Error('Expected a pack name')
 
-    await setResourcePackEnabled(
+    return setResourcePackEnabled(
       requireAbsolutePath(record['gameDir']),
       name,
       record['enabled'] === true
@@ -249,7 +251,7 @@ export function registerIpcHandlers(): void {
         results.push({
           path: String(value),
           ok: false,
-          error: error instanceof Error ? error.message : 'Invalid path'
+          error: error instanceof Error ? error.message : null
         })
         continue
       }
@@ -261,7 +263,7 @@ export function registerIpcHandlers(): void {
         results.push({
           path,
           ok: false,
-          error: error instanceof Error ? error.message : 'Could not move to the recycle bin'
+          error: error instanceof Error ? error.message : null
         })
       }
     }
@@ -292,9 +294,9 @@ function downscaleModIcons(report: ModsReport): ModsReport {
   return report
 }
 
-function pickFolderOptions(): Electron.OpenDialogOptions {
+function pickFolderOptions(title: string): Electron.OpenDialogOptions {
   return {
-    title: 'Select an instance, or a launcher folder containing instances',
+    title,
     properties: ['openDirectory', 'multiSelections']
   }
 }

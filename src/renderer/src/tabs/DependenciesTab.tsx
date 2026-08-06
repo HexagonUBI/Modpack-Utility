@@ -14,12 +14,13 @@ import {
 import { useTheme } from '@mui/material/styles'
 import type { ModFile, ModsReport } from '@shared/types'
 import { isImplicitModId } from '@shared/modIds'
-import DependencyGraph, { LINK_STATE_LABELS, type LinkState } from '../components/DependencyGraph'
+import DependencyGraph, { LINK_STATES, linkStateLabel, type LinkState } from '../components/DependencyGraph'
 import DependencyMap from '../components/DependencyMap'
 
 const MAP_HEIGHT = 620
 import EmptyState from '../components/EmptyState'
 import { useElementSize } from '../hooks'
+import { useT } from '../i18n'
 
 interface DependenciesTabProps {
   report: ModsReport
@@ -27,6 +28,7 @@ interface DependenciesTabProps {
 }
 
 export default function DependenciesTab({ report, onShowMod }: DependenciesTabProps) {
+  const t = useT()
   const theme = useTheme()
   const [focus, setFocus] = useState<ModFile | null>(null)
   const [includeAbsentOptional, setIncludeAbsentOptional] = useState(false)
@@ -75,7 +77,7 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
   }, [layout, report, withRequirements, focus])
 
   if (report.mods.length === 0) {
-    return <EmptyState title="No mods" detail="There is nothing to draw a dependency graph from." />
+    return <EmptyState title={t.dependencies.noMods} detail={t.dependencies.noModsDetail} />
   }
 
   const stateColours: Record<LinkState, string> = {
@@ -89,19 +91,27 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
     <Stack spacing={2}>
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
         <SummaryTile
-          label="Mods with requirements"
+          label={t.dependencies.withRequirements}
           value={String(withRequirements.length)}
-          detail={`of ${report.mods.length} installed`}
+          detail={t.dependencies.ofInstalled(report.mods.length)}
         />
         <SummaryTile
-          label="Unmet requirements"
+          label={t.dependencies.unmet}
           value={String(report.missingDependencies.length)}
-          detail={report.missingDependencies.length === 0 ? 'Nothing is missing' : 'Listed below'}
+          detail={
+            report.missingDependencies.length === 0
+              ? t.dependencies.nothingMissing
+              : t.dependencies.listedBelow
+          }
         />
         <SummaryTile
-          label="Declared conflicts"
+          label={t.dependencies.conflicts}
           value={String(report.conflicts.length)}
-          detail={report.conflicts.length === 0 ? 'None declared' : 'Mods that exclude each other'}
+          detail={
+            report.conflicts.length === 0
+              ? t.dependencies.noneDeclared
+              : t.dependencies.excludeEachOther
+          }
         />
       </Box>
 
@@ -112,8 +122,8 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
           value={layout}
           onChange={(_event, next: 'map' | 'focus' | null) => next && setLayout(next)}
         >
-          <ToggleButton value="map">Whole instance</ToggleButton>
-          <ToggleButton value="focus">One mod</ToggleButton>
+          <ToggleButton value="map">{t.dependencies.wholeInstance}</ToggleButton>
+          <ToggleButton value="focus">{t.dependencies.oneMod}</ToggleButton>
         </ToggleButtonGroup>
 
         <Autocomplete
@@ -124,7 +134,10 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
           getOptionLabel={(mod) => mod.name ?? mod.fileName}
           isOptionEqualToValue={(a, b) => a.filePath === b.filePath}
           renderInput={(params) => (
-            <TextField {...params} label={layout === 'map' ? 'Highlight' : 'Show dependencies for'} />
+            <TextField
+              {...params}
+              label={layout === 'map' ? t.dependencies.highlight : t.dependencies.showDependenciesFor}
+            />
           )}
           sx={{ flex: 1, minWidth: 280, maxWidth: 460 }}
         />
@@ -137,7 +150,7 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
         sx={{ flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
       >
         <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          {(Object.keys(LINK_STATE_LABELS) as LinkState[]).map((state) => (
+          {LINK_STATES.map((state) => (
           <Stack key={state} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
             <Box
               sx={{
@@ -147,7 +160,7 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
               }}
             />
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {LINK_STATE_LABELS[state]}
+                {linkStateLabel(state, t)}
               </Typography>
             </Stack>
           ))}
@@ -164,10 +177,10 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
           label={
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {layout === 'map'
-                ? 'Include optional links'
-                : `Show optional mods that are not installed${
-                    hiddenOptional > 0 && !includeAbsentOptional ? ` (${hiddenOptional} hidden)` : ''
-                  }`}
+                ? t.dependencies.includeOptionalLinks
+                : t.dependencies.showAbsentOptional(
+                    includeAbsentOptional ? 0 : hiddenOptional
+                  )}
             </Typography>
           }
         />
@@ -209,16 +222,19 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
 
       {report.conflicts.length > 0 && (
         <Stack spacing={1}>
-          <Typography variant="subtitle2">Declared conflicts</Typography>
+          <Typography variant="subtitle2">{t.dependencies.declaredConflicts}</Typography>
           {report.conflicts.map((conflict) => (
             <Typography
               key={`${conflict.declaredBy}-${conflict.modId}`}
               variant="body2"
               sx={{ color: 'text.secondary' }}
             >
-              {conflict.declaredBy} declares {conflict.modId}
-              {conflict.versionRange ? ` ${conflict.versionRange}` : ''} incompatible
-              {conflict.installedVersion ? `, and ${conflict.installedVersion} is installed` : ''}.
+              {t.dependencies.conflictSentence(
+                conflict.declaredBy,
+                conflict.modId,
+                conflict.versionRange,
+                conflict.installedVersion
+              )}
             </Typography>
           ))}
         </Stack>
@@ -226,7 +242,7 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
 
       {report.missingDependencies.length > 0 && (
         <Stack spacing={1}>
-          <Typography variant="subtitle2">Unmet requirements</Typography>
+          <Typography variant="subtitle2">{t.dependencies.unmetTitle}</Typography>
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
             {report.missingDependencies.map((missing) => (
               <Chip
@@ -234,7 +250,7 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
                 size="small"
                 color={missing.presentButDisabled ? 'warning' : 'error'}
                 variant="outlined"
-                label={`${missing.modId}${missing.presentButDisabled ? ' (disabled)' : ''}`}
+                label={t.dependencies.missingChip(missing.modId, missing.presentButDisabled)}
                 onClick={() => {
                   const requester = report.mods.find((mod) =>
                     missing.requiredBy.includes(mod.name ?? mod.fileName)
@@ -245,7 +261,7 @@ export default function DependenciesTab({ report, onShowMod }: DependenciesTabPr
             ))}
           </Stack>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            Click one to jump to the mod that asks for it.
+            {t.dependencies.unmetHint}
           </Typography>
         </Stack>
       )}

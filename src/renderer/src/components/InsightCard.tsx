@@ -5,13 +5,17 @@ import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import ReportProblemOutlined from '@mui/icons-material/ReportProblemOutlined'
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded'
 import type { Insight, InsightSeverity } from '../insights'
+import { useT, type Messages } from '../i18n'
 
-const SEVERITY: Record<InsightSeverity, { colour: string; label: string; Icon: typeof InfoOutlined }> = {
-  critical: { colour: '#d03b3b', label: 'Critical', Icon: ErrorOutlineRounded },
-  serious: { colour: '#ec835a', label: 'Needs attention', Icon: ReportProblemOutlined },
-  warning: { colour: '#fab219', label: 'Worth checking', Icon: WarningAmberRounded },
-  good: { colour: '#0ca30c', label: 'Looking good', Icon: CheckCircleOutlineRounded },
-  info: { colour: '#898781', label: 'Note', Icon: InfoOutlined }
+const SEVERITY: Record<
+  InsightSeverity,
+  { colour: string; label: (t: Messages) => string; Icon: typeof InfoOutlined }
+> = {
+  critical: { colour: '#d03b3b', label: (t) => t.insights.critical, Icon: ErrorOutlineRounded },
+  serious: { colour: '#ec835a', label: (t) => t.insights.serious, Icon: ReportProblemOutlined },
+  warning: { colour: '#fab219', label: (t) => t.insights.warning, Icon: WarningAmberRounded },
+  good: { colour: '#0ca30c', label: (t) => t.insights.good, Icon: CheckCircleOutlineRounded },
+  info: { colour: '#898781', label: (t) => t.insights.info, Icon: InfoOutlined }
 }
 
 interface InsightCardProps {
@@ -21,6 +25,7 @@ interface InsightCardProps {
 }
 
 export default function InsightCard({ insight, onOpen }: InsightCardProps) {
+  const t = useT()
   const { colour, label, Icon } = SEVERITY[insight.severity]
   const clickable = onOpen !== undefined
 
@@ -45,7 +50,7 @@ export default function InsightCard({ insight, onOpen }: InsightCardProps) {
         <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
           <Typography variant="subtitle2">{insight.title}</Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-            {label}
+            {label(t)}
           </Typography>
         </Stack>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>

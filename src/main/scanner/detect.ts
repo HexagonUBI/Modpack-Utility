@@ -1,6 +1,6 @@
 import { basename, dirname, join } from 'node:path'
 import { open, readFile, stat } from 'node:fs/promises'
-import { LAUNCHER_LABELS, type Instance, type LauncherKind, type LoaderKind, type MemorySettings } from '@shared/types'
+import type { Instance, LauncherKind, LoaderKind, MemorySettings } from '@shared/types'
 import { knownLauncherRoots } from './launchers'
 import { readModrinthProfiles, type ModrinthProfileIndex } from './modrinthDb'
 import {
@@ -38,7 +38,7 @@ const SERVER_MARKER_FILES = [
 ]
 
 export async function scanKnownLaunchers(
-  onProgress?: (message: string, current: number, total: number) => void
+  onProgress?: (launcher: LauncherKind, current: number, total: number) => void
 ): Promise<Instance[]> {
   const roots = await knownLauncherRoots()
   const found: Instance[] = []
@@ -49,7 +49,7 @@ export async function scanKnownLaunchers(
     : undefined
 
   for (const [index, root] of roots.entries()) {
-    onProgress?.(LAUNCHER_LABELS[root.launcher], index, roots.length)
+    onProgress?.(root.launcher, index, roots.length)
 
     const instances =
       root.kind === 'single'

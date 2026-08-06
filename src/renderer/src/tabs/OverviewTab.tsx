@@ -1,11 +1,12 @@
 import { useMemo, type ReactNode } from 'react'
 import { Box, Button, Divider, Stack, Typography } from '@mui/material'
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded'
-import { LAUNCHER_LABELS, type Instance, type InstanceAnalysis, type StorageReport } from '@shared/types'
+import type { Instance, InstanceAnalysis, StorageReport } from '@shared/types'
 import { buildInsights } from '../insights'
 import { formatBytes, formatDate, formatMemory } from '../format'
 import InsightCard from '../components/InsightCard'
 import StatTile from '../components/StatTile'
+import { useT } from '../i18n'
 
 interface OverviewTabProps {
   instance: Instance
@@ -22,9 +23,10 @@ export default function OverviewTab({
   onReveal,
   onShowMod
 }: OverviewTabProps) {
+  const t = useT()
   const insights = useMemo(
-    () => buildInsights(instance, analysis, storage),
-    [instance, analysis, storage]
+    () => buildInsights(instance, analysis, storage, t),
+    [instance, analysis, storage, t]
   )
 
   const enabledMods = analysis?.mods.mods.filter((mod) => mod.enabled).length ?? 0
@@ -41,30 +43,34 @@ export default function OverviewTab({
         }}
       >
         <StatTile
-          label="Active mods"
+          label={t.overview.activeMods}
           value={analysis ? String(enabledMods) : '-'}
-          hint={analysis && totalMods !== enabledMods ? `${totalMods - enabledMods} disabled` : undefined}
+          hint={
+            analysis && totalMods !== enabledMods
+              ? t.overview.modsDisabled(totalMods - enabledMods)
+              : undefined
+          }
         />
         <StatTile
-          label="Mods folder"
-          value={analysis ? formatBytes(analysis.mods.totalBytes) : '-'}
-          hint={analysis?.mods.exists === false ? 'No mods folder' : undefined}
+          label={t.overview.modsFolder}
+          value={analysis ? formatBytes(analysis.mods.totalBytes, t) : '-'}
+          hint={analysis?.mods.exists === false ? t.mods.noModsFolder : undefined}
         />
         <StatTile
-          label="Config entries"
+          label={t.overview.configEntries}
           value={analysis ? String(analysis.configs.entries.length) : '-'}
-          hint={orphanedConfigs > 0 ? `${orphanedConfigs} match no mod` : undefined}
+          hint={orphanedConfigs > 0 ? t.overview.configsMatchNoMod(orphanedConfigs) : undefined}
         />
         <StatTile
-          label="Instance size"
-          value={storage ? formatBytes(storage.root.sizeBytes) : 'Not measured'}
-          hint={storage ? `${storage.scannedFiles.toLocaleString()} files` : 'Open the Storage tab'}
+          label={t.overview.instanceSize}
+          value={storage ? formatBytes(storage.root.sizeBytes, t) : t.home.notMeasured}
+          hint={storage ? t.home.files(storage.scannedFiles) : t.overview.openStorageTab}
         />
       </Box>
 
       {insights.length > 0 && (
         <Stack spacing={1.5}>
-          <Typography variant="h6">Health &amp; performance</Typography>
+          <Typography variant="h6">{t.insights.heading}</Typography>
           {insights.map((insight) => (
             <InsightCard
               key={insight.id}
@@ -78,32 +84,42 @@ export default function OverviewTab({
       )}
 
       <Stack spacing={1.5}>
-        <Typography variant="h6">Details</Typography>
+        <Typography variant="h6">{t.overview.details}</Typography>
         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-          <DetailRow label="Launcher" value={LAUNCHER_LABELS[instance.launcher]} />
-          <DetailRow label="Minecraft" value={instance.minecraftVersion ?? 'Unknown'} />
+          <DetailRow label={t.overview.launcher} value={t.launchers[instance.launcher]} />
           <DetailRow
-            label="Mod loader"
+            label={t.overview.minecraft}
+            value={instance.minecraftVersion ?? t.common.unknown}
+          />
+          <DetailRow
+            label={t.overview.modLoader}
             value={
               instance.loader && instance.loader !== 'unknown'
-                ? `${loaderName(instance.loader)}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ''}`
-                : 'Unknown'
+                ? `${t.loaders[instance.loader]}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ''}`
+                : t.common.unknown
             }
           />
           <DetailRow
-            label="Memory"
+            label={t.overview.memory}
             value={
               instance.memory
-                ? `${formatMemory(instance.memory.maxMb)}${
-                    instance.memory.minMb ? ` (min ${formatMemory(instance.memory.minMb)})` : ''
-                  }`
-                : 'Launcher default'
+                ? instance.memory.minMb
+                  ? t.overview.memoryWithMinimum(
+                      formatMemory(instance.memory.maxMb, t),
+                      formatMemory(instance.memory.minMb, t)
+                    )
+                  : formatMemory(instance.memory.maxMb, t)
+                : t.common.launcherDefault
             }
           />
-          <DetailRow label="Java arguments" value={instance.javaArgs ?? 'None set'} mono />
-          <DetailRow label="Last played" value={formatDate(instance.lastPlayedIso)} />
           <DetailRow
-            label="Instance folder"
+            label={t.overview.javaArguments}
+            value={instance.javaArgs ?? t.common.noneSet}
+            mono
+          />
+          <DetailRow label={t.overview.lastPlayed} value={formatDate(instance.lastPlayedIso, t)} />
+          <DetailRow
+            label={t.overview.instanceFolder}
             value={instance.rootPath}
             mono
             action={
@@ -112,12 +128,12 @@ export default function OverviewTab({
                 startIcon={<FolderOpenRounded />}
                 onClick={() => onReveal(instance.rootPath)}
               >
-                Open
+                {t.common.open}
               </Button>
             }
           />
           {instance.gameDir !== instance.rootPath && (
-            <DetailRow label="Game folder" value={instance.gameDir} mono last />
+            <DetailRow label={t.overview.gameFolder} value={instance.gameDir} mono last />
           )}
         </Box>
       </Stack>
@@ -164,21 +180,4 @@ function DetailRow({ label, value, mono, last, action }: DetailRowProps) {
       {!last && <Divider />}
     </>
   )
-}
-
-function loaderName(loader: string): string {
-  switch (loader) {
-    case 'neoforge':
-      return 'NeoForge'
-    case 'forge':
-      return 'Forge'
-    case 'fabric':
-      return 'Fabric'
-    case 'quilt':
-      return 'Quilt'
-    case 'vanilla':
-      return 'Vanilla'
-    default:
-      return loader
-  }
 }

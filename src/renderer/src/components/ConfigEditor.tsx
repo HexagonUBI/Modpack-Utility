@@ -20,6 +20,7 @@ import {
 } from '@mui/material'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import type { ConfigDocument, ConfigSetting, SettingValue } from '@shared/types'
+import { useT } from '../i18n'
 
 interface ConfigEditorProps {
   path: string | null
@@ -29,6 +30,7 @@ interface ConfigEditorProps {
 }
 
 export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally }: ConfigEditorProps) {
+  const t = useT()
   const [document, setDocument] = useState<ConfigDocument | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -50,8 +52,8 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
       .then((result) => {
         if (!cancelled) setDocument(result)
       })
-      .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : 'The file could not be read.')
+      .catch(() => {
+        if (!cancelled) setError(t.configEditor.readFailed)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -60,7 +62,7 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
     return () => {
       cancelled = true
     }
-  }, [path])
+  }, [path, t])
 
   const grouped = useMemo(() => {
     if (!document) return []
@@ -96,13 +98,15 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
         Object.entries(edits).map(([key, value]) => ({ key, value }))
       )
       if (!result.ok) {
-        setError(result.error ?? 'Some options could not be saved.')
+        setError(
+          result.error ? t.configEditor.writeError[result.error] : t.configEditor.saveFailed
+        )
         return
       }
-      onSaved(`Saved ${dirtyCount} ${dirtyCount === 1 ? 'change' : 'changes'}.`)
+      onSaved(t.configEditor.saved(dirtyCount))
       onClose()
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The file could not be saved.')
+    } catch {
+      setError(t.configEditor.saveFailed)
     } finally {
       setSaving(false)
     }
@@ -111,10 +115,10 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
   return (
     <Dialog open={path !== null} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ pb: 1 }}>
-        {document?.fileName ?? 'Config'}
+        {document?.fileName ?? t.configEditor.fallbackTitle}
         {dirtyCount > 0 && (
           <Typography component="span" variant="body2" sx={{ color: 'text.secondary', ml: 1 }}>
-            {dirtyCount} unsaved
+            {t.configEditor.unsaved(dirtyCount)}
           </Typography>
         )}
       </DialogTitle>
@@ -135,9 +139,11 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
         {!loading && document?.unsupportedReason && (
           <Stack spacing={2} sx={{ py: 4, alignItems: 'flex-start' }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {document.unsupportedReason}
+              {t.configEditor.unsupported[document.unsupportedReason]}
             </Typography>
-            <Button onClick={() => onOpenExternally(document.path)}>Open in the default editor</Button>
+            <Button onClick={() => onOpenExternally(document.path)}>
+              {t.configEditor.openInEditor}
+            </Button>
           </Stack>
         )}
 
@@ -145,7 +151,7 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
           <Stack spacing={2}>
             <TextField
               size="small"
-              placeholder="Search options..."
+              placeholder={t.configEditor.searchOptions}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               slotProps={{
@@ -161,7 +167,7 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
 
             {grouped.length === 0 && (
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Nothing matches that search.
+                {t.configEditor.nothingMatchesSearch}
               </Typography>
             )}
 
@@ -176,6 +182,7 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
                   <SettingRow
                     key={setting.key}
                     setting={setting}
+                    listHelperText={t.configEditor.onePerLine}
                     value={edits[setting.key] ?? setting.value}
                     onChange={(value) =>
                       setEdits((current) => {
@@ -198,12 +205,12 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
       <DialogActions>
         {document && !document.unsupportedReason && (
           <Button onClick={() => onOpenExternally(document.path)} sx={{ mr: 'auto' }}>
-            Open as text
+            {t.configEditor.openAsText}
           </Button>
         )}
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t.common.cancel}</Button>
         <Button variant="contained" disabled={dirtyCount === 0 || saving} onClick={() => void save()}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t.common.saving : t.common.save}
         </Button>
       </DialogActions>
     </Dialog>
@@ -212,11 +219,12 @@ export default function ConfigEditor({ path, onClose, onSaved, onOpenExternally 
 
 interface SettingRowProps {
   setting: ConfigSetting
+  listHelperText: string
   value: SettingValue
   onChange: (value: SettingValue) => void
 }
 
-function SettingRow({ setting, value, onChange }: SettingRowProps) {
+function SettingRow({ setting, listHelperText, value, onChange }: SettingRowProps) {
   return (
     <Box
       sx={{
@@ -238,13 +246,18 @@ function SettingRow({ setting, value, onChange }: SettingRowProps) {
       </Box>
 
       <Box>
-        <SettingControl setting={setting} value={value} onChange={onChange} />
+        <SettingControl
+          setting={setting}
+          listHelperText={listHelperText}
+          value={value}
+          onChange={onChange}
+        />
       </Box>
     </Box>
   )
 }
 
-function SettingControl({ setting, value, onChange }: SettingRowProps) {
+function SettingControl({ setting, listHelperText, value, onChange }: SettingRowProps) {
   if (setting.kind === 'boolean') {
     return (
       <Switch
@@ -331,7 +344,7 @@ function SettingControl({ setting, value, onChange }: SettingRowProps) {
               .filter((entry) => entry.length > 0)
           )
         }
-        helperText="One per line"
+        helperText={listHelperText}
       />
     )
   }

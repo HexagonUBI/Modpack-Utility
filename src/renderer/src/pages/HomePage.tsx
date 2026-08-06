@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material'
 import StorageRounded from '@mui/icons-material/StorageRounded'
-import { LAUNCHER_LABELS, type Instance, type InstanceSize, type LauncherKind } from '@shared/types'
+import type { Instance, InstanceSize, LauncherKind } from '@shared/types'
 import { formatBytes, formatDate, formatPercent } from '../format'
 import { categoricalColour, CATEGORICAL_SLOT_COUNT } from '../viz'
 import type { ThemeMode } from '../theme'
@@ -60,7 +60,7 @@ export default function HomePage({
       label: entry.instance.name,
       value: entry.sizeBytes,
       colour: categoricalColour(index, mode),
-      detail: formatBytes(entry.sizeBytes)
+      detail: formatBytes(entry.sizeBytes, t)
     }))
 
     if (rest.length > 0) {
@@ -70,12 +70,12 @@ export default function HomePage({
         label: t.home.smallerInstances(rest.length),
         value: restBytes,
         colour: categoricalColour(CATEGORICAL_SLOT_COUNT, mode),
-        detail: formatBytes(restBytes)
+        detail: formatBytes(restBytes, t)
       })
     }
 
     return result
-  }, [ranked, mode])
+  }, [ranked, mode, t])
 
   return (
     <Box sx={{ height: '100%', overflowY: 'auto', px: 4, py: 3 }}>
@@ -97,7 +97,7 @@ export default function HomePage({
           <StatTile label={t.home.versions} value={String(versions)} hint={t.home.versionsHint} />
           <StatTile
             label={t.home.totalOnDisk}
-            value={sizes ? formatBytes(totalBytes) : t.home.notMeasured}
+            value={sizes ? formatBytes(totalBytes, t) : t.home.notMeasured}
             hint={sizes ? t.home.files(sumFiles(sizes)) : t.home.measureToFillIn}
           />
         </Box>
@@ -148,7 +148,7 @@ export default function HomePage({
                 <Donut
                   slices={slices}
                   size={240}
-                  centreValue={formatBytes(totalBytes)}
+                  centreValue={formatBytes(totalBytes, t)}
                   centreLabel={t.home.acrossAllInstances}
                   onSelect={(slice) => {
                     const match = instances.find((instance) => instance.id === slice.key)
@@ -189,7 +189,7 @@ export default function HomePage({
                       variant="body2"
                       sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
                     >
-                      {formatBytes(slice.value)}
+                      {formatBytes(slice.value, t)}
                     </Typography>
                     <Typography
                       variant="caption"
@@ -217,7 +217,7 @@ export default function HomePage({
             <BarList
               data={byLauncher.map(([launcher, count], index) => ({
                 key: launcher,
-                label: LAUNCHER_LABELS[launcher],
+                label: t.launchers[launcher],
                 value: count,
                 colour: categoricalColour(index, mode)
               }))}
@@ -247,7 +247,7 @@ export default function HomePage({
                       {instance.name}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {formatDate(instance.lastPlayedIso)}
+                      {formatDate(instance.lastPlayedIso, t)}
                     </Typography>
                   </Stack>
                 ))}

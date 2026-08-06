@@ -11,20 +11,6 @@ export type LauncherKind =
   | 'server'
   | 'custom'
 
-export const LAUNCHER_LABELS: Record<LauncherKind, string> = {
-  prism: 'Prism Launcher',
-  multimc: 'MultiMC',
-  curseforge: 'CurseForge',
-  modrinth: 'Modrinth',
-  atlauncher: 'ATLauncher',
-  gdlauncher: 'GDLauncher',
-  ftb: 'FTB App',
-  technic: 'Technic',
-  vanilla: 'Vanilla Launcher',
-  server: 'Dedicated Server',
-  custom: 'Unrecognised'
-}
-
 export type LoaderKind = 'forge' | 'neoforge' | 'fabric' | 'quilt' | 'vanilla' | 'unknown'
 
 export interface MemorySettings {
@@ -143,13 +129,19 @@ export interface MissingDependency {
 
 export type ConfigStatus = 'owned' | 'inactive' | 'orphaned' | 'system' | 'unmatched'
 
-export const CONFIG_STATUS_LABELS: Record<ConfigStatus, string> = {
-  owned: 'Active mod',
-  inactive: 'Disabled mod',
-  orphaned: 'No matching mod',
-  system: 'Loader / system',
-  unmatched: 'Unattributed'
-}
+export type ConfigMatchReason =
+  | { kind: 'system' }
+  | { kind: 'noMods' }
+  | { kind: 'noMatch' }
+  | { kind: 'exactModId'; modId: string }
+  | { kind: 'namedAfterModId'; modId: string }
+  | { kind: 'normalisedModId'; modId: string }
+  | { kind: 'bundledConfig'; modName: string }
+  | { kind: 'modName'; modName: string }
+  | { kind: 'fileName'; modName: string }
+  | { kind: 'initials'; candidate: string; modName: string }
+  | { kind: 'containsModId'; modId: string }
+  | { kind: 'shortenedModId'; modId: string }
 
 export interface ConfigEntry {
   path: string
@@ -164,7 +156,7 @@ export interface ConfigEntry {
   ownerModName: string | null
 
   confidence: number
-  reason: string
+  reason: ConfigMatchReason
 }
 
 export interface ConfigReport {
@@ -194,23 +186,6 @@ export type StorageCategory =
   | 'libraries'
   | 'versions'
   | 'other'
-
-export const STORAGE_CATEGORY_LABELS: Record<StorageCategory, string> = {
-  mods: 'Mods',
-  config: 'Configs',
-  saves: 'Worlds',
-  resourcepacks: 'Resource packs',
-  shaderpacks: 'Shader packs',
-  logs: 'Logs',
-  crashes: 'Crash reports',
-  backups: 'Backups',
-  cache: 'Caches',
-  maps: 'Map data',
-  screenshots: 'Screenshots',
-  libraries: 'Libraries',
-  versions: 'Versions',
-  other: 'Other'
-}
 
 export const DISPOSABLE_CATEGORIES: StorageCategory[] = ['logs', 'crashes', 'cache']
 
@@ -281,11 +256,20 @@ export interface TrashResult {
   error: string | null
 }
 
-export interface ScanProgress {
-  phase: 'launchers' | 'instance' | 'mods' | 'configs' | 'storage'
-  message: string
-  current: number
-  total: number
+export type ScanProgress =
+  | { phase: 'launchers'; launcher: LauncherKind; current: number; total: number }
+  | { phase: 'instances'; name: string; current: number; total: number }
+  | { phase: 'files'; relativePath: string; current: number; total: number }
+
+export type ContentErrorCode = 'modFileExists' | 'noOptionsFile'
+
+export interface ContentResult {
+  ok: boolean
+
+  path: string | null
+  error: ContentErrorCode | null
+
+  detail: string | null
 }
 
 export type SettingKind = 'boolean' | 'integer' | 'number' | 'string' | 'enum' | 'list'
@@ -310,32 +294,35 @@ export interface ConfigSetting {
 
 export type ConfigFormat = 'toml' | 'json' | 'properties' | 'unsupported'
 
+export type ConfigUnsupportedReason =
+  | 'fileType'
+  | 'unreadable'
+  | 'tooLarge'
+  | 'notUnderstood'
+  | 'noOptions'
+  | 'notSettings'
+
 export interface ConfigDocument {
   path: string
   fileName: string
   format: ConfigFormat
   settings: ConfigSetting[]
 
-  unsupportedReason: string | null
+  unsupportedReason: ConfigUnsupportedReason | null
 }
+
+export type ConfigWriteError = 'fileType' | 'unparsable' | 'stale' | 'missingKeys' | 'failed'
 
 export interface ConfigWriteResult {
   ok: boolean
-  error: string | null
+  error: ConfigWriteError | null
+
+  detail: string | null
 
   skipped: string[]
 }
 
 export type AccentName = 'red' | 'green' | 'blue' | 'violet' | 'amber' | 'slate'
-
-export const ACCENT_LABELS: Record<AccentName, string> = {
-  red: 'Red',
-  green: 'Green',
-  blue: 'Blue',
-  violet: 'Violet',
-  amber: 'Amber',
-  slate: 'Slate'
-}
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 

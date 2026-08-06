@@ -26,13 +26,13 @@ export async function readConfigDocument(path: string): Promise<ConfigDocument> 
   }
 
   if (format === 'unsupported') {
-    return { ...base, unsupportedReason: 'This file type is not editable here.' }
+    return { ...base, unsupportedReason: 'fileType' }
   }
 
   const text = await readTextFile(path)
-  if (text === null) return { ...base, unsupportedReason: 'The file could not be read.' }
+  if (text === null) return { ...base, unsupportedReason: 'unreadable' }
   if (text.length > MAX_CONFIG_BYTES) {
-    return { ...base, unsupportedReason: 'The file is too large to edit here.' }
+    return { ...base, unsupportedReason: 'tooLarge' }
   }
 
   const settings =
@@ -43,14 +43,14 @@ export async function readConfigDocument(path: string): Promise<ConfigDocument> 
         : parseJsonSettings(text)
 
   if (settings === null) {
-    return { ...base, unsupportedReason: 'The file could not be understood well enough to edit.' }
+    return { ...base, unsupportedReason: 'notUnderstood' }
   }
   if (settings.length === 0) {
-    return { ...base, unsupportedReason: 'No editable options were found in this file.' }
+    return { ...base, unsupportedReason: 'noOptions' }
   }
 
   if (fileName.toLowerCase().endsWith('.txt') && settings.length < 3) {
-    return { ...base, unsupportedReason: 'This does not look like a settings file.' }
+    return { ...base, unsupportedReason: 'notSettings' }
   }
 
   return { ...base, settings: settings.slice(0, MAX_SETTINGS) }
@@ -60,18 +60,21 @@ export async function writeConfigChanges(
   path: string,
   changes: Array<{ key: string; value: SettingValue }>
 ): Promise<ConfigWriteResult> {
-  if (changes.length === 0) return { ok: true, error: null, skipped: [] }
+  if (changes.length === 0) return { ok: true, error: null, detail: null, skipped: [] }
 
   try {
     const format = formatOf(basename(path))
     if (format === 'json') return await writeJsonChanges(path, changes)
-    if (format === 'unsupported') return { ok: false, error: 'This file type cannot be edited.', skipped: [] }
+    if (format === 'unsupported') {
+      return { ok: false, error: 'fileType', detail: null, skipped: [] }
+    }
 
     return await writeLineChanges(path, format, changes)
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : 'The file could not be saved.',
+      error: 'failed',
+      detail: error instanceof Error ? error.message : null,
       skipped: []
     }
   }
@@ -414,10 +417,8 @@ async function writeLineChanges(
 
   return {
     ok: skipped.length === 0,
-    error:
-      skipped.length === 0
-        ? null
-        : 'Some options could not be saved because the file changed on disk. Reopen it and try again.',
+    error: skipped.length === 0 ? null : 'stale',
+    detail: null,
     skipped
   }
 }
@@ -429,7 +430,7 @@ async function writeJsonChanges(
   const text = await readFile(path, 'utf8')
   const json = parseJsonLoose<Record<string, unknown>>(text)
   if (typeof json !== 'object' || json === null) {
-    return { ok: false, error: 'The file could not be parsed.', skipped: changes.map((c) => c.key) }
+    return { ok: false, error: 'unparsable', detail: null, skipped: changes.map((c) => c.key) }
   }
 
   const skipped: string[] = []
@@ -459,7 +460,8 @@ async function writeJsonChanges(
 
   return {
     ok: skipped.length === 0,
-    error: skipped.length === 0 ? null : 'Some options no longer exist in this file.',
+    error: skipped.length === 0 ? null : 'missingKeys',
+    detail: null,
     skipped
   }
 }

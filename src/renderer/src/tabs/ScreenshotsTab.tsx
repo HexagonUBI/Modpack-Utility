@@ -20,6 +20,7 @@ import PhotoLibraryOutlined from '@mui/icons-material/PhotoLibraryOutlined'
 import type { ScreenshotEntry, ScreenshotReport } from '@shared/types'
 import { formatBytes, formatDate } from '../format'
 import EmptyState from '../components/EmptyState'
+import { useT, type Messages } from '../i18n'
 
 type SortKey = 'newest' | 'oldest' | 'largest'
 
@@ -36,6 +37,7 @@ const SIX_MONTHS_MS = 182 * 24 * 60 * 60 * 1000
 const LARGE_SCREENSHOT_BYTES = 4 * 1024 * 1024
 
 export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge }: ScreenshotsTabProps) {
+  const t = useT()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SortKey>('newest')
   const [shown, setShown] = useState(PAGE_SIZE)
@@ -88,8 +90,8 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
     return (
       <EmptyState
         icon={<PhotoLibraryOutlined sx={{ fontSize: 40, color: 'text.secondary' }} />}
-        title="No screenshots"
-        detail="Screenshots taken in this instance will show up here, with sizes and bulk cleanup."
+        title={t.screenshots.none}
+        detail={t.screenshots.noneDetail}
       />
     )
   }
@@ -106,12 +108,23 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
   return (
     <Stack spacing={2}>
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-        <SummaryTile label="Screenshots" value={String(report.screenshots.length)} detail="in this instance" />
-        <SummaryTile label="Total size" value={formatBytes(report.totalBytes)} detail="whole folder" />
         <SummaryTile
-          label="Older than 6 months"
+          label={t.screenshots.count}
+          value={String(report.screenshots.length)}
+          detail={t.screenshots.inThisInstance}
+        />
+        <SummaryTile
+          label={t.screenshots.totalSize}
+          value={formatBytes(report.totalBytes, t)}
+          detail={t.screenshots.wholeFolder}
+        />
+        <SummaryTile
+          label={t.screenshots.olderThanSixMonths}
           value={String(old.length)}
-          detail={formatBytes(old.reduce((sum, shot) => sum + shot.sizeBytes, 0))}
+          detail={formatBytes(
+            old.reduce((sum, shot) => sum + shot.sizeBytes, 0),
+            t
+          )}
         />
       </Box>
 
@@ -122,7 +135,7 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
           disabled={old.length === 0}
           onClick={() => setSelected(new Set(old.map((shot) => shot.path)))}
         >
-          Select older than 6 months ({old.length})
+          {t.screenshots.selectOld(old.length)}
         </Button>
         <Button
           size="small"
@@ -130,11 +143,11 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
           disabled={large.length === 0}
           onClick={() => setSelected(new Set(large.map((shot) => shot.path)))}
         >
-          Select over 4 MB ({large.length})
+          {t.screenshots.selectLarge(large.length)}
         </Button>
         {selected.size > 0 && (
           <Button size="small" onClick={() => setSelected(new Set())}>
-            Clear selection
+            {t.common.clearSelection}
           </Button>
         )}
         <Box sx={{ flex: 1 }} />
@@ -144,9 +157,9 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
           value={sort}
           onChange={(_event, next: SortKey | null) => next && setSort(next)}
         >
-          <ToggleButton value="newest">Newest</ToggleButton>
-          <ToggleButton value="oldest">Oldest</ToggleButton>
-          <ToggleButton value="largest">Largest</ToggleButton>
+          <ToggleButton value="newest">{t.screenshots.newest}</ToggleButton>
+          <ToggleButton value="oldest">{t.screenshots.oldest}</ToggleButton>
+          <ToggleButton value="largest">{t.screenshots.largest}</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
@@ -163,11 +176,11 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
               disabled={busy}
               onClick={() => setConfirming(true)}
             >
-              Move to recycle bin
+              {t.common.moveToRecycleBin}
             </Button>
           }
         >
-          {selected.size} selected, {formatBytes(selectedBytes)}
+          {t.common.selected(selected.size, formatBytes(selectedBytes, t))}
         </Alert>
       )}
 
@@ -182,6 +195,7 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
           <ScreenshotCard
             key={shot.path}
             shot={shot}
+            t={t}
             thumbnail={thumbnails[shot.path] ?? null}
             selected={selected.has(shot.path)}
             onToggle={() => toggle(shot.path)}
@@ -193,20 +207,19 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
 
       {shown < ordered.length && (
         <Button onClick={() => setShown((current) => current + PAGE_SIZE)}>
-          Show more ({ordered.length - shown} remaining)
+          {t.common.showMore(ordered.length - shown)}
         </Button>
       )}
 
       <Dialog open={confirming} onClose={() => setConfirming(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Move {selected.size} screenshots to the recycle bin?</DialogTitle>
+        <DialogTitle>{t.screenshots.purgeTitle(selected.size)}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This frees {formatBytes(selectedBytes)}. Nothing is deleted permanently, so you can restore them
-            from the recycle bin.
+            {t.screenshots.purgeDetail(formatBytes(selectedBytes, t))}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirming(false)}>Cancel</Button>
+          <Button onClick={() => setConfirming(false)}>{t.common.cancel}</Button>
           <Button
             color="error"
             variant="contained"
@@ -215,7 +228,7 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
               onPurge(selectedShots.map((shot) => shot.path))
             }}
           >
-            Move to recycle bin
+            {t.common.moveToRecycleBin}
           </Button>
         </DialogActions>
       </Dialog>
@@ -225,6 +238,7 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
 
 interface ScreenshotCardProps {
   shot: ScreenshotEntry
+  t: Messages
   thumbnail: string | null
   selected: boolean
   onToggle: () => void
@@ -232,7 +246,15 @@ interface ScreenshotCardProps {
   onReveal: (path: string) => void
 }
 
-function ScreenshotCard({ shot, thumbnail, selected, onToggle, onOpen, onReveal }: ScreenshotCardProps) {
+function ScreenshotCard({
+  shot,
+  t,
+  thumbnail,
+  selected,
+  onToggle,
+  onOpen,
+  onReveal
+}: ScreenshotCardProps) {
   return (
     <Box
       sx={{
@@ -246,7 +268,7 @@ function ScreenshotCard({ shot, thumbnail, selected, onToggle, onOpen, onReveal 
       <Checkbox
         checked={selected}
         onChange={onToggle}
-        slotProps={{ input: { 'aria-label': `Select ${shot.name}` } }}
+        slotProps={{ input: { 'aria-label': t.screenshots.selectOne(shot.name) } }}
         sx={{
           position: 'absolute',
           top: 2,
@@ -259,7 +281,7 @@ function ScreenshotCard({ shot, thumbnail, selected, onToggle, onOpen, onReveal 
         }}
       />
 
-      <Tooltip title="Open full size">
+      <Tooltip title={t.screenshots.openFullSize}>
         <Box
           onClick={() => onOpen(shot.path)}
           sx={{
@@ -279,14 +301,14 @@ function ScreenshotCard({ shot, thumbnail, selected, onToggle, onOpen, onReveal 
         </Typography>
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between' }}>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {formatDate(new Date(shot.modifiedMs).toISOString())}
+            {formatDate(new Date(shot.modifiedMs).toISOString(), t)}
           </Typography>
           <Typography
             variant="caption"
             sx={{ color: 'text.secondary', cursor: 'pointer' }}
             onClick={() => onReveal(shot.path)}
           >
-            {formatBytes(shot.sizeBytes)}
+            {formatBytes(shot.sizeBytes, t)}
           </Typography>
         </Stack>
       </Stack>

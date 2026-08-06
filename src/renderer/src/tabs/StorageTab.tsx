@@ -24,7 +24,7 @@ import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined
 import StorageRounded from '@mui/icons-material/StorageRounded'
 import type { SizeNode, StorageReport } from '@shared/types'
 import { formatBytes, formatCount, formatPercent } from '../format'
-import { colourForCategory, colourForGroup, groupForCategory, VIZ_GROUP_LABELS, VIZ_GROUP_ORDER, type VizGroup } from '../viz'
+import { colourForCategory, colourForGroup, groupForCategory, VIZ_GROUP_ORDER, type VizGroup } from '../viz'
 import type { ThemeMode } from '../theme'
 import Treemap from '../components/Treemap'
 import EmptyState from '../components/EmptyState'
@@ -35,7 +35,7 @@ import {
   SortHeaderCell,
   useSort
 } from '../components/SortableTable'
-import { useT } from '../i18n'
+import { useT, type Messages } from '../i18n'
 
 interface StorageTabProps {
   report: StorageReport | null
@@ -91,7 +91,7 @@ export default function StorageTab({
       <Stack spacing={2} sx={{ alignItems: 'center', py: 10 }}>
         <CircularProgress />
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {progress ?? 'Measuring files...'}
+          {progress ?? t.storage.measuringFiles}
         </Typography>
       </Stack>
     )
@@ -101,11 +101,11 @@ export default function StorageTab({
     return (
       <EmptyState
         icon={<StorageRounded sx={{ fontSize: 40, color: 'text.secondary' }} />}
-        title="Measure this instance"
-        detail="Walks every file to show exactly where the space went, the way WizTree does. Large instances with big worlds can take a few seconds."
+        title={t.storage.measureTitle}
+        detail={t.storage.measureDetail}
         action={
           <Button variant="contained" onClick={onScan}>
-            Measure now
+            {t.storage.measureNow}
           </Button>
         }
       />
@@ -118,14 +118,17 @@ export default function StorageTab({
     <Stack spacing={2}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
         <Box>
-          <Typography variant="h5">{formatBytes(root.sizeBytes)}</Typography>
+          <Typography variant="h5">{formatBytes(root.sizeBytes, t)}</Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {formatCount(report.scannedFiles)} files measured in {(report.scannedMs / 1000).toFixed(1)}s
+            {t.storage.filesMeasuredIn(
+              formatCount(report.scannedFiles),
+              (report.scannedMs / 1000).toFixed(1)
+            )}
           </Typography>
         </Box>
         <Box sx={{ flex: 1 }} />
         <Button size="small" onClick={onScan}>
-          Re-measure
+          {t.storage.reMeasure}
         </Button>
       </Stack>
 
@@ -164,7 +167,7 @@ export default function StorageTab({
               }}
             />
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {VIZ_GROUP_LABELS[entry.group]} - {formatBytes(entry.sizeBytes)}
+              {t.storage.legendEntry(t.storageGroups[entry.group], formatBytes(entry.sizeBytes, t))}
             </Typography>
           </Stack>
         ))}
@@ -200,7 +203,7 @@ export default function StorageTab({
 
       {report.truncated && trail.length === 0 && (
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Very deep or very wide folders are grouped for display. All sizes shown are exact totals.
+          {t.storage.truncatedNote}
         </Typography>
       )}
 
@@ -226,6 +229,7 @@ export default function StorageTab({
               <SizeRow
                 key={child.path || child.name}
                 node={child}
+                t={t}
                 depth={0}
                 total={current.sizeBytes}
                 mode={mode}
@@ -244,6 +248,7 @@ export default function StorageTab({
 
 interface SizeRowProps {
   node: SizeNode
+  t: Messages
   depth: number
   total: number
   mode: ThemeMode
@@ -256,7 +261,17 @@ interface SizeRowProps {
 const INDENT_PER_LEVEL = 20
 const MAX_INLINE_CHILDREN = 200
 
-function SizeRow({ node, depth, total, mode, expansion, compare, onDrillDown, onReveal }: SizeRowProps) {
+function SizeRow({
+  node,
+  t,
+  depth,
+  total,
+  mode,
+  expansion,
+  compare,
+  onDrillDown,
+  onReveal
+}: SizeRowProps) {
   const expandable = node.isDirectory && node.path !== ''
   const open = expansion.isExpanded(node.path)
   const loading = expansion.isLoading(node.path)
@@ -271,7 +286,7 @@ function SizeRow({ node, depth, total, mode, expansion, compare, onDrillDown, on
             {expandable ? (
               <IconButton
                 size="small"
-                aria-label={open ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                aria-label={open ? t.common.collapse(node.name) : t.common.expand(node.name)}
                 onClick={() => expansion.toggle(node.path, node.children)}
                 sx={{ p: 0.25 }}
               >
@@ -299,7 +314,7 @@ function SizeRow({ node, depth, total, mode, expansion, compare, onDrillDown, on
           </Stack>
         </TableCell>
         <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatBytes(node.sizeBytes)}
+          {formatBytes(node.sizeBytes, t)}
         </TableCell>
         <TableCell>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -326,14 +341,14 @@ function SizeRow({ node, depth, total, mode, expansion, compare, onDrillDown, on
         <TableCell>
           <Stack direction="row">
             {node.isDirectory && node.children && node.children.length > 0 && depth === 0 && (
-              <Tooltip title="Open as its own view">
+              <Tooltip title={t.storage.openAsOwnView}>
                 <IconButton size="small" onClick={() => onDrillDown(node)}>
                   <ChevronRightRounded fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
             {node.path && (
-              <Tooltip title="Show in folder">
+              <Tooltip title={t.common.showInFolder}>
                 <IconButton size="small" onClick={() => onReveal(node.path)}>
                   <FolderOpenRounded fontSize="small" />
                 </IconButton>
@@ -349,6 +364,7 @@ function SizeRow({ node, depth, total, mode, expansion, compare, onDrillDown, on
             key={child.path || `${node.path}/${child.name}`}
 
             node={{ ...child, category: node.category }}
+            t={t}
             depth={depth + 1}
             total={total}
             mode={mode}
@@ -363,8 +379,7 @@ function SizeRow({ node, depth, total, mode, expansion, compare, onDrillDown, on
         <TableRow>
           <TableCell colSpan={5} sx={{ pl: `${(depth + 1) * INDENT_PER_LEVEL + 30}px` }}>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {children.length - MAX_INLINE_CHILDREN} more items not shown. Use Show in folder to see them
-              all.
+              {t.storage.moreItems(children.length - MAX_INLINE_CHILDREN)}
             </Typography>
           </TableCell>
         </TableRow>

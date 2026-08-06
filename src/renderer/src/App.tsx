@@ -3,15 +3,18 @@ import { Box, CssBaseline, Snackbar, ThemeProvider } from '@mui/material'
 import {
   DEFAULT_SETTINGS,
   type AppSettings,
+  type ContentResult,
   type Instance,
   type InstanceAnalysis,
   type InstanceSize,
   type ResourcePackReport,
+  type ScanProgress,
   type ScreenshotReport,
   type StorageReport
 } from '@shared/types'
 import { buildTheme, type ThemeMode } from './theme'
-import { I18nContext, messagesFor } from './i18n'
+import { I18nContext, messagesFor, type Messages } from './i18n'
+import { formatCount } from './format'
 import { useAsyncData } from './hooks'
 import InstanceSidebar from './components/InstanceSidebar'
 import InstanceDetail from './components/InstanceDetail'
@@ -46,7 +49,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [progress, setProgress] = useState<string | null>(null)
+  const [progress, setProgress] = useState<ScanProgress | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
 
@@ -85,10 +88,15 @@ export default function App() {
   const analysis = useAsyncData(requestKey, loadAnalysis)
   const content = useAsyncData(requestKey, loadContent)
 
+  const progressText = useMemo(
+    () => (progress === null ? null : describeProgress(progress, messages)),
+    [progress, messages]
+  )
+
   useEffect(
     () =>
       window.api.onProgress((update) => {
-        setProgress(update.message)
+        setProgress(update)
         if (update.total > 0) setMeasureFraction(update.current / update.total)
       }),
     []
@@ -123,8 +131,8 @@ export default function App() {
         current && found.some((instance) => instance.id === current) ? current : null
       )
       if (found.length === 0) setNotice(messages.nav.noInstances)
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Scan failed')
+    } catch {
+      setNotice(messages.notices.scanFailed)
     } finally {
       setScanning(false)
       setProgress(null)
@@ -137,7 +145,7 @@ export default function App() {
 
   const addFolder = useCallback(async () => {
     try {
-      const added = await window.api.addFolder()
+      const added = await window.api.addFolder(messages.nav.pickFolderTitle)
       if (added.length === 0) return
 
       setInstances((current) => {
@@ -147,11 +155,11 @@ export default function App() {
       })
       setInstanceSizes(null)
       setSettings(await window.api.getSettings())
-      setNotice(`Added ${added.length} instance${added.length === 1 ? '' : 's'}.`)
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not read that folder')
+      setNotice(messages.notices.instancesAdded(added.length))
+    } catch {
+      setNotice(messages.notices.folderFailed)
     }
-  }, [])
+  }, [messages])
 
   const measureAll = useCallback(async () => {
     setMeasuringAll(true)
@@ -165,13 +173,13 @@ export default function App() {
         }))
       )
       setInstanceSizes(sizes)
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not measure the instances')
+    } catch {
+      setNotice(messages.notices.measureAllFailed)
     } finally {
       setMeasuringAll(false)
       setProgress(null)
     }
-  }, [instances])
+  }, [instances, messages])
 
   const scanStorage = useCallback(async () => {
     if (!selected) return
@@ -181,13 +189,13 @@ export default function App() {
     try {
       const report = await window.api.analyseStorage(target.gameDir)
       setStorageById((current) => ({ ...current, [target.id]: report }))
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not measure this instance')
+    } catch {
+      setNotice(messages.notices.measureFailed)
     } finally {
       setStorageLoadingId(null)
       setProgress(null)
     }
-  }, [selected])
+  }, [selected, messages])
 
   const purge = useCallback(
     async (paths: string[]) => {
@@ -202,8 +210,8 @@ export default function App() {
 
         setNotice(
           failed.length === 0
-            ? `Moved ${moved} ${moved === 1 ? 'item' : 'items'} to the recycle bin.`
-            : `Moved ${moved}, could not move ${failed.length}. ${failed[0]?.error ?? ''}`
+            ? messages.notices.movedToBin(moved)
+            : messages.notices.movedPartly(moved, failed.length, failed[0]?.error ?? null)
         )
 
         if (target) {
@@ -215,45 +223,51 @@ export default function App() {
         }
         setInstanceSizes(null)
         setRefreshToken((token) => token + 1)
-      } catch (error) {
-        setNotice(error instanceof Error ? error.message : 'Could not move those files')
+      } catch {
+        setNotice(messages.notices.purgeFailed)
       } finally {
         setBusy(false)
       }
     },
-    [selected]
+    [selected, messages]
   )
 
-  const runMutation = useCallback(async (action: () => Promise<void>, failure: string) => {
-    setBusy(true)
-    try {
-      await action()
-      setRefreshToken((token) => token + 1)
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : failure)
-    } finally {
-      setBusy(false)
-    }
-  }, [])
+  const runMutation = useCallback(
+    async (action: () => Promise<ContentResult>, failure: string) => {
+      setBusy(true)
+      try {
+        const result = await action()
+        if (!result.ok) setNotice(describeContentError(result, messages, failure))
+        setRefreshToken((token) => token + 1)
+      } catch {
+        setNotice(failure)
+      } finally {
+        setBusy(false)
+      }
+    },
+    [messages]
+  )
 
   const toggleMod = useCallback(
     (path: string, enabled: boolean) => {
-      void runMutation(async () => {
-        await window.api.setModEnabled(path, enabled)
-      }, 'Could not change that mod')
+      void runMutation(
+        () => window.api.setModEnabled(path, enabled),
+        messages.notices.modToggleFailed
+      )
     },
-    [runMutation]
+    [runMutation, messages]
   )
 
   const togglePack = useCallback(
     (name: string, enabled: boolean) => {
       if (!selected) return
       const gameDir = selected.gameDir
-      void runMutation(async () => {
-        await window.api.setPackEnabled(gameDir, name, enabled)
-      }, 'Could not change that resource pack')
+      void runMutation(
+        () => window.api.setPackEnabled(gameDir, name, enabled),
+        messages.notices.packToggleFailed
+      )
     },
-    [runMutation, selected]
+    [runMutation, selected, messages]
   )
 
   const reveal = useCallback((path: string) => {
@@ -307,7 +321,7 @@ export default function App() {
               instances={instances}
               sizes={instanceSizes}
               measuring={measuringAll}
-              progress={progress}
+              progress={progressText}
               mode={mode}
               onMeasure={() => void measureAll()}
               onSelect={selectInstance}
@@ -323,7 +337,7 @@ export default function App() {
               content={content.status === 'ready' ? content.data : null}
               storage={storageById[selected.id] ?? null}
               storageLoading={storageLoadingId === selected.id}
-              progress={progress}
+              progress={progressText}
               mode={mode}
               busy={busy}
               onScanStorage={() => void scanStorage()}
@@ -352,4 +366,26 @@ export default function App() {
     </ThemeProvider>
     </I18nContext.Provider>
   )
+}
+
+function describeProgress(progress: ScanProgress, t: Messages): string {
+  switch (progress.phase) {
+    case 'launchers':
+      return t.progress.checkingLauncher(t.launchers[progress.launcher])
+    case 'instances':
+      return t.progress.measuringInstance(progress.name, progress.current, progress.total)
+    case 'files':
+      return t.progress.walkingFiles(progress.relativePath, formatCount(progress.current))
+  }
+}
+
+function describeContentError(result: ContentResult, t: Messages, fallback: string): string {
+  switch (result.error) {
+    case 'modFileExists':
+      return t.notices.modFileExists(result.detail ?? '')
+    case 'noOptionsFile':
+      return t.notices.noOptionsFile
+    default:
+      return fallback
+  }
 }

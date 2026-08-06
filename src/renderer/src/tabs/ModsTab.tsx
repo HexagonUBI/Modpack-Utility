@@ -96,12 +96,7 @@ export default function ModsTab({
   }, [report.mods, filter, query, sorter.sort])
 
   if (!report.exists) {
-    return (
-      <EmptyState
-        title="No mods folder"
-        detail="This instance has no mods directory, so there is nothing to inspect here yet."
-      />
-    )
+    return <EmptyState title={t.mods.noModsFolder} detail={t.mods.noModsFolderDetail} />
   }
 
   return (
@@ -111,9 +106,9 @@ export default function ModsTab({
           insight={{
             id: 'conflicts',
             severity: 'critical',
-            title: `${report.conflicts.length} incompatible ${report.conflicts.length === 1 ? 'mod' : 'mods'} installed together`,
+            title: t.insights.conflictsTitle(report.conflicts.length),
             detail: report.conflicts
-              .map((conflict) => `${conflict.declaredBy} declares ${conflict.modId} incompatible`)
+              .map((conflict) => t.dependencies.conflictSummary(conflict.declaredBy, conflict.modId))
               .join('. ')
           }}
         />
@@ -126,13 +121,14 @@ export default function ModsTab({
             severity: report.missingDependencies.some((entry) => !entry.presentButDisabled)
               ? 'critical'
               : 'serious',
-            title: `${report.missingDependencies.length} unmet ${
-              report.missingDependencies.length === 1 ? 'dependency' : 'dependencies'
-            }`,
+            title: t.dependencies.unmetCount(report.missingDependencies.length),
             detail: report.missingDependencies
-              .map(
-                (entry) =>
-                  `${entry.modId}${entry.presentButDisabled ? ' (present but disabled)' : ''} - needed by ${entry.requiredBy.join(', ')}`
+              .map((entry) =>
+                t.dependencies.neededBy(
+                  entry.modId,
+                  entry.presentButDisabled,
+                  entry.requiredBy.join(', ')
+                )
               )
               .join(' - ')
           }}
@@ -142,7 +138,7 @@ export default function ModsTab({
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ alignItems: { md: 'center' } }}>
         <TextField
           size="small"
-          placeholder="Search mods..."
+          placeholder={t.mods.searchMods}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           sx={{ flex: 1, minWidth: 220 }}
@@ -162,15 +158,15 @@ export default function ModsTab({
           value={filter}
           onChange={(_event, next: ModFilter | null) => next && setFilter(next)}
         >
-          <ToggleButton value="all">All {report.mods.length}</ToggleButton>
-          <ToggleButton value="enabled">Enabled</ToggleButton>
-          <ToggleButton value="disabled">Disabled</ToggleButton>
-          <ToggleButton value="unidentified">Unidentified</ToggleButton>
+          <ToggleButton value="all">{t.mods.allWithCount(report.mods.length)}</ToggleButton>
+          <ToggleButton value="enabled">{t.common.enabled}</ToggleButton>
+          <ToggleButton value="disabled">{t.common.disabled}</ToggleButton>
+          <ToggleButton value="unidentified">{t.mods.unidentified}</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
       {visible.length === 0 ? (
-        <EmptyState title="Nothing matches" detail="Try a different search term or filter." />
+        <EmptyState title={t.common.nothingMatches} detail={t.common.tryDifferentSearch} />
       ) : (
         <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
           <Table size="small">
@@ -263,9 +259,11 @@ export default function ModsTab({
                         </Stack>
                       </TableCell>
                       <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{mod.version ?? '-'}</TableCell>
-                      <TableCell>{loaderLabel(mod)}</TableCell>
+                      <TableCell>
+                        {mod.loaderType === 'unknown' ? '-' : t.loaders[mod.loaderType]}
+                      </TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {formatBytes(mod.sizeBytes)}
+                        {formatBytes(mod.sizeBytes, t)}
                       </TableCell>
                       <TableCell onClick={(event) => event.stopPropagation()}>
                         <Tooltip title={mod.enabled ? t.common.disabled : t.common.enabled}>
@@ -279,7 +277,7 @@ export default function ModsTab({
                         </Tooltip>
                       </TableCell>
                       <TableCell>
-                        <Tooltip title="Show in folder">
+                        <Tooltip title={t.common.showInFolder}>
                           <IconButton
                             size="small"
                             onClick={(event) => {
@@ -295,7 +293,7 @@ export default function ModsTab({
                     <TableRow>
                       <TableCell colSpan={7} sx={{ py: 0, border: isOpen ? undefined : 'none' }}>
                         <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                          <ModDetails mod={mod} onReveal={onReveal} />
+                          <ModDetails mod={mod} t={t} onReveal={onReveal} />
                         </Collapse>
                       </TableCell>
                     </TableRow>
@@ -310,7 +308,13 @@ export default function ModsTab({
   )
 }
 
-function ModDetails({ mod, onReveal }: { mod: ModFile; onReveal: (path: string) => void }) {
+interface ModDetailsProps {
+  mod: ModFile
+  t: ReturnType<typeof useT>
+  onReveal: (path: string) => void
+}
+
+function ModDetails({ mod, t, onReveal }: ModDetailsProps) {
   const required = mod.dependencies.filter((dependency) => dependency.kind === 'required')
   const optional = mod.dependencies.filter((dependency) => dependency.kind === 'optional')
   const incompatible = mod.dependencies.filter((dependency) => dependency.kind === 'incompatible')
@@ -325,28 +329,34 @@ function ModDetails({ mod, onReveal }: { mod: ModFile; onReveal: (path: string) 
 
       {mod.parseError && (
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          No readable manifest ({mod.parseError}). This is normal for libraries and coremods.
+          {t.mods.noManifest(mod.parseError)}
         </Typography>
       )}
 
       <Box sx={{ display: 'grid', gap: 1, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-        {mod.authors.length > 0 && <Fact label="Authors" value={mod.authors.join(', ')} />}
-        {mod.environment && <Fact label="Runs on" value={environmentLabel(mod.environment)} />}
-        {mod.provides.length > 0 && <Fact label="Also provides" value={mod.provides.join(', ')} />}
-        <Fact label="File" value={mod.fileName} />
+        {mod.authors.length > 0 && <Fact label={t.mods.authors} value={mod.authors.join(', ')} />}
+        {mod.environment && (
+          <Fact label={t.mods.runsOn} value={environmentLabel(mod.environment, t)} />
+        )}
+        {mod.provides.length > 0 && (
+          <Fact label={t.mods.alsoProvides} value={mod.provides.join(', ')} />
+        )}
+        <Fact label={t.mods.file} value={mod.fileName} />
       </Box>
 
-      {required.length > 0 && <Fact label="Requires" value={required.map(describeDependency).join(', ')} />}
+      {required.length > 0 && (
+        <Fact label={t.mods.requires} value={required.map(describeDependency).join(', ')} />
+      )}
       {optional.length > 0 && (
-        <Fact label="Works with (optional)" value={optional.map(describeDependency).join(', ')} />
+        <Fact label={t.mods.worksWith} value={optional.map(describeDependency).join(', ')} />
       )}
       {incompatible.length > 0 && (
-        <Fact label="Incompatible with" value={incompatible.map(describeDependency).join(', ')} />
+        <Fact label={t.mods.incompatibleWith} value={incompatible.map(describeDependency).join(', ')} />
       )}
 
       <Stack direction="row" spacing={1}>
         <Button size="small" startIcon={<FolderOpenRounded />} onClick={() => onReveal(mod.filePath)}>
-          Show in folder
+          {t.common.showInFolder}
         </Button>
       </Stack>
     </Stack>
@@ -370,31 +380,17 @@ function describeDependency(dependency: { modId: string; versionRange: string | 
   return dependency.versionRange ? `${dependency.modId} ${dependency.versionRange}` : dependency.modId
 }
 
-function environmentLabel(environment: 'client' | 'server' | 'both'): string {
+function environmentLabel(
+  environment: 'client' | 'server' | 'both',
+  t: ReturnType<typeof useT>
+): string {
   switch (environment) {
     case 'client':
-      return 'Client only'
+      return t.mods.clientOnly
     case 'server':
-      return 'Server only'
+      return t.mods.serverOnly
     default:
-      return 'Client and server'
-  }
-}
-
-function loaderLabel(mod: ModFile): string {
-  switch (mod.loaderType) {
-    case 'neoforge':
-      return 'NeoForge'
-    case 'forge':
-      return 'Forge'
-    case 'legacy-forge':
-      return 'Forge (legacy)'
-    case 'fabric':
-      return 'Fabric'
-    case 'quilt':
-      return 'Quilt'
-    default:
-      return '-'
+      return t.mods.clientAndServer
   }
 }
 

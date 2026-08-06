@@ -25,9 +25,17 @@ import SearchRounded from '@mui/icons-material/SearchRounded'
 import SettingsRounded from '@mui/icons-material/SettingsRounded'
 import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded'
 import ViewInArRounded from '@mui/icons-material/ViewInArRounded'
-import { LAUNCHER_LABELS, type Instance, type LauncherKind } from '@shared/types'
+import type { Instance, LauncherKind } from '@shared/types'
 import type { ThemeMode } from '../theme'
-import { useT } from '../i18n'
+import { useT, type Messages } from '../i18n'
+
+const FOOTER_BUTTON = {
+  minWidth: 0,
+  px: 1,
+  lineHeight: 1.25,
+  textAlign: 'left',
+  '& .MuiButton-startIcon': { flexShrink: 0, mr: 0.75 }
+} as const
 
 interface InstanceSidebarProps {
   instances: Instance[]
@@ -63,7 +71,7 @@ export default function InstanceSidebar({
   const t = useT()
   const [query, setQuery] = useState('')
 
-  const groups = useMemo(() => groupByLauncher(instances, query), [instances, query])
+  const groups = useMemo(() => groupByLauncher(instances, query, t), [instances, query, t])
 
   return (
     <Stack
@@ -189,7 +197,7 @@ export default function InstanceSidebar({
                 textTransform: 'uppercase'
               }}
             >
-              {LAUNCHER_LABELS[launcher]} - {items.length}
+              {t.launchers[launcher]} - {items.length}
             </Typography>
             <List dense disablePadding>
               {items.map((instance) => (
@@ -212,7 +220,7 @@ export default function InstanceSidebar({
                   </ListItemAvatar>
                   <ListItemText
                     primary={instance.name}
-                    secondary={subtitle(instance, t.nav.versionUnknown)}
+                    secondary={subtitle(instance, t)}
                     slotProps={{
                       primary: { noWrap: true, variant: 'body2', sx: { fontWeight: 600 } },
                       secondary: { noWrap: true, variant: 'caption' }
@@ -234,10 +242,17 @@ export default function InstanceSidebar({
           startIcon={scanning ? <CircularProgress size={14} /> : <RefreshRounded />}
           onClick={onRescan}
           disabled={scanning}
+          sx={FOOTER_BUTTON}
         >
           {t.nav.rescan}
         </Button>
-        <Button fullWidth size="small" startIcon={<CreateNewFolderRounded />} onClick={onAddFolder}>
+        <Button
+          fullWidth
+          size="small"
+          startIcon={<CreateNewFolderRounded />}
+          onClick={onAddFolder}
+          sx={FOOTER_BUTTON}
+        >
           {t.nav.addFolder}
         </Button>
         <Tooltip title={t.nav.settings}>
@@ -255,7 +270,11 @@ export default function InstanceSidebar({
   )
 }
 
-function groupByLauncher(instances: Instance[], query: string): Array<[LauncherKind, Instance[]]> {
+function groupByLauncher(
+  instances: Instance[],
+  query: string,
+  t: Messages
+): Array<[LauncherKind, Instance[]]> {
   const needle = query.trim().toLowerCase()
   const filtered =
     needle === ''
@@ -264,7 +283,7 @@ function groupByLauncher(instances: Instance[], query: string): Array<[LauncherK
           (instance) =>
             instance.name.toLowerCase().includes(needle) ||
             (instance.minecraftVersion ?? '').toLowerCase().includes(needle) ||
-            LAUNCHER_LABELS[instance.launcher].toLowerCase().includes(needle)
+            t.launchers[instance.launcher].toLowerCase().includes(needle)
         )
 
   const groups = new Map<LauncherKind, Instance[]>()
@@ -274,29 +293,16 @@ function groupByLauncher(instances: Instance[], query: string): Array<[LauncherK
     groups.set(instance.launcher, bucket)
   }
 
-  return [...groups.entries()].sort((a, b) => LAUNCHER_LABELS[a[0]].localeCompare(LAUNCHER_LABELS[b[0]]))
+  return [...groups.entries()].sort((a, b) =>
+    t.launchers[a[0]].localeCompare(t.launchers[b[0]])
+  )
 }
 
-function subtitle(instance: Instance, unknownLabel: string): string {
-  const parts = [instance.minecraftVersion, loaderShortName(instance.loader)].filter(Boolean)
-  return parts.length > 0 ? parts.join(' - ') : unknownLabel
-}
-
-function loaderShortName(loader: Instance['loader']): string | null {
-  switch (loader) {
-    case 'neoforge':
-      return 'NeoForge'
-    case 'forge':
-      return 'Forge'
-    case 'fabric':
-      return 'Fabric'
-    case 'quilt':
-      return 'Quilt'
-    case 'vanilla':
-      return 'Vanilla'
-    default:
-      return null
-  }
+function subtitle(instance: Instance, t: Messages): string {
+  const loader =
+    instance.loader && instance.loader !== 'unknown' ? t.loaders[instance.loader] : null
+  const parts = [instance.minecraftVersion, loader].filter(Boolean)
+  return parts.length > 0 ? parts.join(' - ') : t.nav.versionUnknown
 }
 
 function initials(name: string): string {

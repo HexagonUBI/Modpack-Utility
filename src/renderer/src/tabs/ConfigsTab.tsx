@@ -34,12 +34,12 @@ import FolderRounded from '@mui/icons-material/FolderRounded'
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import TuneRounded from '@mui/icons-material/TuneRounded'
-import {
-  CONFIG_STATUS_LABELS,
-  type ConfigEntry,
-  type ConfigReport,
-  type ConfigStatus,
-  type SizeNode
+import type {
+  ConfigEntry,
+  ConfigMatchReason,
+  ConfigReport,
+  ConfigStatus,
+  SizeNode
 } from '@shared/types'
 import { formatBytes } from '../format'
 import EmptyState from '../components/EmptyState'
@@ -51,7 +51,7 @@ import {
   useSort
 } from '../components/SortableTable'
 import { useDirectoryExpansion, type DirectoryExpansion } from '../hooks'
-import { useT } from '../i18n'
+import { useT, type Messages } from '../i18n'
 
 type StatusFilter = ConfigStatus | 'all'
 
@@ -83,37 +83,66 @@ const BACKUP_SUFFIX = /\.(bak|old|disabled)$/i
 
 interface QuickSelect {
   id: string
-  label: string
-  hint: string
+  label: (t: Messages) => string
+  hint: (t: Messages) => string
   match: (entry: ConfigEntry) => boolean
 }
 
 const QUICK_SELECTS: QuickSelect[] = [
   {
     id: 'orphaned',
-    label: 'No matching mod',
-    hint: 'Config left behind by mods that are no longer installed',
+    label: (t) => t.configs.presetOrphaned,
+    hint: (t) => t.configs.presetOrphanedHint,
     match: (entry) => entry.status === 'orphaned'
   },
   {
     id: 'inactive',
-    label: 'From disabled mods',
-    hint: 'Settings for mods that are present but switched off. Keep these if you plan to re-enable them',
+    label: (t) => t.configs.presetInactive,
+    hint: (t) => t.configs.presetInactiveHint,
     match: (entry) => entry.status === 'inactive'
   },
   {
     id: 'low-confidence',
-    label: 'Uncertain matches',
-    hint: 'Attributed to a mod, but with low confidence. Worth reviewing by hand',
+    label: (t) => t.configs.presetUncertain,
+    hint: (t) => t.configs.presetUncertainHint,
     match: (entry) => entry.confidence > 0 && entry.confidence < LOW_CONFIDENCE
   },
   {
     id: 'backups',
-    label: 'Backups and .old files',
-    hint: 'Superseded copies the mods themselves left behind',
+    label: (t) => t.configs.presetBackups,
+    hint: (t) => t.configs.presetBackupsHint,
     match: (entry) => BACKUP_SUFFIX.test(entry.relativePath)
   }
 ]
+
+export function describeConfigReason(reason: ConfigMatchReason, t: Messages): string {
+  switch (reason.kind) {
+    case 'system':
+      return t.configReason.system
+    case 'noMods':
+      return t.configReason.noMods
+    case 'noMatch':
+      return t.configReason.noMatch
+    case 'exactModId':
+      return t.configReason.exactModId(reason.modId)
+    case 'namedAfterModId':
+      return t.configReason.namedAfterModId(reason.modId)
+    case 'normalisedModId':
+      return t.configReason.normalisedModId(reason.modId)
+    case 'bundledConfig':
+      return t.configReason.bundledConfig(reason.modName)
+    case 'modName':
+      return t.configReason.modName(reason.modName)
+    case 'fileName':
+      return t.configReason.fileName(reason.modName)
+    case 'initials':
+      return t.configReason.initials(reason.candidate, reason.modName)
+    case 'containsModId':
+      return t.configReason.containsModId(reason.modId)
+    case 'shortenedModId':
+      return t.configReason.shortenedModId(reason.modId)
+  }
+}
 
 export default function ConfigsTab({
   report,
@@ -240,32 +269,36 @@ export default function ConfigsTab({
       {gameOptions}
 
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-        <SummaryTile label="Matched to a mod" value={String(report.totals.owned)} detail="Config is in use" />
         <SummaryTile
-          label="Disabled mod"
+          label={t.configs.matchedToMod}
+          value={String(report.totals.owned)}
+          detail={t.configs.configInUse}
+        />
+        <SummaryTile
+          label={t.configs.disabledMod}
           value={String(report.totals.inactive)}
-          detail="Settings kept for later"
+          detail={t.configs.settingsKept}
         />
         <SummaryTile
-          label="No matching mod"
+          label={t.configs.noMatchingMod}
           value={String(report.totals.orphaned)}
-          detail={`${formatBytes(report.reclaimableBytes)} reclaimable`}
+          detail={t.configs.reclaimable(formatBytes(report.reclaimableBytes, t))}
         />
         <SummaryTile
-          label="Loader and system"
+          label={t.configs.loaderAndSystem}
           value={String(report.totals.system)}
-          detail="Not owned by any mod"
+          detail={t.configs.notOwned}
         />
       </Box>
 
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-          Quick select
+          {t.configs.quickSelect}
         </Typography>
         {QUICK_SELECTS.map((preset) => {
           const count = report.entries.filter(preset.match).length
           return (
-            <Tooltip key={preset.id} title={preset.hint}>
+            <Tooltip key={preset.id} title={preset.hint(t)}>
               <span>
                 <Button
                   size="small"
@@ -273,7 +306,7 @@ export default function ConfigsTab({
                   disabled={count === 0}
                   onClick={() => applyQuickSelect(preset)}
                 >
-                  {preset.label} ({count})
+                  {t.configs.presetWithCount(preset.label(t), count)}
                 </Button>
               </span>
             </Tooltip>
@@ -281,7 +314,7 @@ export default function ConfigsTab({
         })}
         {selected.size > 0 && (
           <Button size="small" onClick={() => setSelected(new Set())}>
-            Clear selection
+            {t.common.clearSelection}
           </Button>
         )}
       </Stack>
@@ -299,18 +332,18 @@ export default function ConfigsTab({
               disabled={busy}
               onClick={() => setConfirming(true)}
             >
-              Move to recycle bin
+              {t.common.moveToRecycleBin}
             </Button>
           }
         >
-          {selected.size} selected, {formatBytes(selectedBytes)}
+          {t.common.selected(selected.size, formatBytes(selectedBytes, t))}
         </Alert>
       )}
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ alignItems: { md: 'center' } }}>
         <TextField
           size="small"
-          placeholder="Search configs..."
+          placeholder={t.configs.searchConfigs}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           sx={{ flex: 1, minWidth: 220 }}
@@ -330,16 +363,16 @@ export default function ConfigsTab({
           value={filter}
           onChange={(_event, next: StatusFilter | null) => next && setFilter(next)}
         >
-          <ToggleButton value="all">All</ToggleButton>
-          <ToggleButton value="owned">Active</ToggleButton>
-          <ToggleButton value="inactive">Disabled</ToggleButton>
-          <ToggleButton value="orphaned">Unmatched</ToggleButton>
-          <ToggleButton value="system">System</ToggleButton>
+          <ToggleButton value="all">{t.common.all}</ToggleButton>
+          <ToggleButton value="owned">{t.configs.filterActive}</ToggleButton>
+          <ToggleButton value="inactive">{t.common.disabled}</ToggleButton>
+          <ToggleButton value="orphaned">{t.configs.filterUnmatched}</ToggleButton>
+          <ToggleButton value="system">{t.configs.filterSystem}</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
       {visible.length === 0 ? (
-        <EmptyState title="Nothing matches" detail="Try a different search term or filter." />
+        <EmptyState title={t.common.nothingMatches} detail={t.common.tryDifferentSearch} />
       ) : (
         <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
           <Table size="small">
@@ -350,7 +383,7 @@ export default function ConfigsTab({
                     checked={allVisibleSelected}
                     indeterminate={someVisibleSelected && !allVisibleSelected}
                     onChange={toggleAllVisible}
-                    slotProps={{ input: { 'aria-label': 'Select all shown configs' } }}
+                    slotProps={{ input: { 'aria-label': t.configs.selectAllShown } }}
                   />
                 </TableCell>
                 <SortHeaderCell columnKey="name" sorter={sorter}>
@@ -376,6 +409,7 @@ export default function ConfigsTab({
                 <ConfigRow
                   key={entry.path}
                   entry={entry}
+                  t={t}
                   selected={selected.has(entry.path)}
                   expansion={expansion}
                   onToggle={() => toggle(entry.path)}
@@ -392,11 +426,10 @@ export default function ConfigsTab({
       {report.modsWithoutConfig.length > 0 && (
         <Stack spacing={1}>
           <Typography variant="subtitle2">
-            {report.modsWithoutConfig.length} installed{' '}
-            {report.modsWithoutConfig.length === 1 ? 'mod has' : 'mods have'} no config of their own
+            {t.configs.modsWithoutConfig(report.modsWithoutConfig.length)}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Perfectly normal. Many mods need no configuration, and some write into another mod&apos;s folder.{' '}
+            {t.configs.modsWithoutConfigDetail}{' '}
             {report.modsWithoutConfig.map((mod) => mod.name).join(', ')}
           </Typography>
         </Stack>
@@ -410,11 +443,10 @@ export default function ConfigsTab({
       />
 
       <Dialog open={confirming} onClose={() => setConfirming(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Move {selected.size} config entries to the recycle bin?</DialogTitle>
+        <DialogTitle>{t.configs.purgeTitle(selected.size)}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            This frees {formatBytes(selectedBytes)}. Nothing is deleted permanently, so you can restore from
-            the recycle bin if a mod turns out to have needed one of these.
+            {t.configs.purgeDetail(formatBytes(selectedBytes, t))}
           </DialogContentText>
           <Box
             sx={{
@@ -428,20 +460,18 @@ export default function ConfigsTab({
           >
             {selectedEntries.map((entry) => (
               <Typography key={entry.path} variant="body2" sx={{ fontFamily: 'ui-monospace, monospace' }}>
-                {entry.relativePath}
-                {entry.ownerModName ? `  (${entry.ownerModName})` : ''}
+                {t.configs.purgeEntry(entry.relativePath, entry.ownerModName)}
               </Typography>
             ))}
           </Box>
           {selectedEntries.some((entry) => entry.status === 'owned') && (
             <Alert severity="warning" sx={{ mt: 2 }}>
-              Some of these belong to mods that are installed and enabled. Removing them resets those mods to
-              their default settings.
+              {t.configs.purgeOwnedWarning}
             </Alert>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirming(false)}>Cancel</Button>
+          <Button onClick={() => setConfirming(false)}>{t.common.cancel}</Button>
           <Button
             color="error"
             variant="contained"
@@ -450,7 +480,7 @@ export default function ConfigsTab({
               onPurge(selectedEntries.map((entry) => entry.path))
             }}
           >
-            Move to recycle bin
+            {t.common.moveToRecycleBin}
           </Button>
         </DialogActions>
       </Dialog>
@@ -460,6 +490,7 @@ export default function ConfigsTab({
 
 interface ConfigRowProps {
   entry: ConfigEntry
+  t: Messages
   selected: boolean
   expansion: DirectoryExpansion
   onToggle: () => void
@@ -468,7 +499,16 @@ interface ConfigRowProps {
   onEdit: (path: string) => void
 }
 
-function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onEdit }: ConfigRowProps) {
+function ConfigRow({
+  entry,
+  t,
+  selected,
+  expansion,
+  onToggle,
+  onReveal,
+  onOpen,
+  onEdit
+}: ConfigRowProps) {
   const open = expansion.isExpanded(entry.path)
   const loading = expansion.isLoading(entry.path)
   const children = open ? expansion.childrenOf(entry.path, null) : null
@@ -488,7 +528,9 @@ function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onE
           {entry.isDirectory ? (
             <IconButton
               size="small"
-              aria-label={open ? `Collapse ${entry.relativePath}` : `Expand ${entry.relativePath}`}
+              aria-label={
+                open ? t.common.collapse(entry.relativePath) : t.common.expand(entry.relativePath)
+              }
               onClick={() => expansion.toggle(entry.path, null)}
               sx={{ p: 0.25 }}
             >
@@ -516,7 +558,7 @@ function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onE
             </Typography>
             {entry.isDirectory && (
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {entry.fileCount} {entry.fileCount === 1 ? 'file' : 'files'}
+                {t.common.fileCount(entry.fileCount)}
               </Typography>
             )}
           </Box>
@@ -537,7 +579,7 @@ function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onE
         )}
       </TableCell>
       <TableCell>
-        <Tooltip title={entry.reason}>
+        <Tooltip title={describeConfigReason(entry.reason, t)}>
           <Box>
             <LinearProgress
               variant="determinate"
@@ -546,38 +588,40 @@ function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onE
               sx={{ opacity: entry.confidence > 0 ? 1 : 0.25 }}
             />
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {entry.confidence > 0 ? `${Math.round(entry.confidence * 100)}% sure` : 'No match'}
+              {entry.confidence > 0
+                ? t.configs.sure(Math.round(entry.confidence * 100))
+                : t.configs.noMatch}
             </Typography>
           </Box>
         </Tooltip>
       </TableCell>
       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-        {formatBytes(entry.sizeBytes)}
+        {formatBytes(entry.sizeBytes, t)}
       </TableCell>
       <TableCell>
         <Chip
           size="small"
           variant="outlined"
           color={STATUS_COLOUR[entry.status]}
-          label={CONFIG_STATUS_LABELS[entry.status]}
+          label={t.configStatus[entry.status]}
         />
       </TableCell>
       <TableCell>
         <Stack direction="row">
           {!entry.isDirectory && isEditableConfig(entry.relativePath) && (
-            <Tooltip title="Edit settings">
+            <Tooltip title={t.common.editSettings}>
               <IconButton size="small" onClick={() => onEdit(entry.path)}>
                 <TuneRounded fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
-          <Tooltip title="Show in folder">
+          <Tooltip title={t.common.showInFolder}>
             <IconButton size="small" onClick={() => onReveal(entry.path)}>
               <FolderOpenRounded fontSize="small" />
             </IconButton>
           </Tooltip>
           {!entry.isDirectory && (
-            <Tooltip title="Open file">
+            <Tooltip title={t.common.openFile}>
               <IconButton size="small" onClick={() => onOpen(entry.path)}>
                 <InsertDriveFileOutlined fontSize="small" />
               </IconButton>
@@ -592,6 +636,7 @@ function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onE
           <ConfigChildRow
             key={child.path}
             node={child}
+            t={t}
             depth={1}
             expansion={expansion}
             onReveal={onReveal}
@@ -605,6 +650,7 @@ function ConfigRow({ entry, selected, expansion, onToggle, onReveal, onOpen, onE
 
 interface ConfigChildRowProps {
   node: SizeNode
+  t: Messages
   depth: number
   expansion: DirectoryExpansion
   onReveal: (path: string) => void
@@ -614,7 +660,7 @@ interface ConfigChildRowProps {
 
 const CHILD_INDENT = 22
 
-function ConfigChildRow({ node, depth, expansion, onReveal, onOpen, onEdit }: ConfigChildRowProps) {
+function ConfigChildRow({ node, t, depth, expansion, onReveal, onOpen, onEdit }: ConfigChildRowProps) {
   const open = expansion.isExpanded(node.path)
   const loading = expansion.isLoading(node.path)
   const children = open ? expansion.childrenOf(node.path, null) : null
@@ -632,7 +678,7 @@ function ConfigChildRow({ node, depth, expansion, onReveal, onOpen, onEdit }: Co
             {node.isDirectory ? (
               <IconButton
                 size="small"
-                aria-label={open ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                aria-label={open ? t.common.collapse(node.name) : t.common.expand(node.name)}
                 onClick={() => expansion.toggle(node.path, null)}
                 sx={{ p: 0.25 }}
               >
@@ -661,25 +707,25 @@ function ConfigChildRow({ node, depth, expansion, onReveal, onOpen, onEdit }: Co
         <TableCell />
         <TableCell />
         <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
-          {formatBytes(node.sizeBytes)}
+          {formatBytes(node.sizeBytes, t)}
         </TableCell>
         <TableCell />
         <TableCell>
           <Stack direction="row">
             {!node.isDirectory && isEditableConfig(node.name) && (
-              <Tooltip title="Edit settings">
+              <Tooltip title={t.common.editSettings}>
                 <IconButton size="small" onClick={() => onEdit(node.path)}>
                   <TuneRounded fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title="Show in folder">
+            <Tooltip title={t.common.showInFolder}>
               <IconButton size="small" onClick={() => onReveal(node.path)}>
                 <FolderOpenRounded fontSize="small" />
               </IconButton>
             </Tooltip>
             {!node.isDirectory && (
-              <Tooltip title="Open file">
+              <Tooltip title={t.common.openFile}>
                 <IconButton size="small" onClick={() => onOpen(node.path)}>
                   <InsertDriveFileOutlined fontSize="small" />
                 </IconButton>
@@ -694,6 +740,7 @@ function ConfigChildRow({ node, depth, expansion, onReveal, onOpen, onEdit }: Co
           <ConfigChildRow
             key={child.path}
             node={child}
+            t={t}
             depth={depth + 1}
             expansion={expansion}
             onReveal={onReveal}

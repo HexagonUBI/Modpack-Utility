@@ -2,9 +2,10 @@ import { useMemo } from 'react'
 import { hierarchy, treemap, treemapSquarify } from 'd3-hierarchy'
 import { Box, Tooltip } from '@mui/material'
 import type { SizeNode } from '@shared/types'
-import { formatBytes, formatCount, formatPercent } from '../format'
+import { formatBytes, formatPercent } from '../format'
 import { colourForCategory, inkOnFill } from '../viz'
 import { SURFACE, type ThemeMode } from '../theme'
+import { useT } from '../i18n'
 
 interface TreemapProps {
   node: SizeNode
@@ -28,6 +29,7 @@ const SIZE_LINE_MIN_HEIGHT = 44
 const CHAR_WIDTH = 6.4
 
 export default function Treemap({ node, width, height, mode, onOpen }: TreemapProps) {
+  const t = useT()
   const tiles = useMemo(() => {
     if (width < 40 || height < 40) return []
 
@@ -50,7 +52,7 @@ export default function Treemap({ node, width, height, mode, onOpen }: TreemapPr
   const total = node.sizeBytes
 
   return (
-    <svg width={width} height={height} role="img" aria-label={`Size breakdown of ${node.name}`}>
+    <svg width={width} height={height} role="img" aria-label={t.chart.sizeBreakdownOf(node.name)}>
       {tiles.map((tile) => {
         const ref = tile.data.ref
         if (!ref) return null
@@ -76,10 +78,13 @@ export default function Treemap({ node, width, height, mode, onOpen }: TreemapPr
                 <Box component="span" sx={{ display: 'block', fontWeight: 700 }}>
                   {ref.name}
                 </Box>
-                {formatBytes(ref.sizeBytes)} - {formatPercent(ref.sizeBytes, total)} of this folder
+                {t.chart.shareOfFolder(
+                  formatBytes(ref.sizeBytes, t),
+                  formatPercent(ref.sizeBytes, total)
+                )}
                 <Box component="span" sx={{ display: 'block', opacity: 0.8 }}>
-                  {formatCount(ref.fileCount)} {ref.fileCount === 1 ? 'file' : 'files'}
-                  {ref.isDirectory && ref.children ? ' - click to open' : ''}
+                  {t.common.fileCount(ref.fileCount)}
+                  {ref.isDirectory && ref.children ? ` - ${t.chart.clickToOpen}` : ''}
                 </Box>
               </Box>
             }
@@ -120,7 +125,7 @@ export default function Treemap({ node, width, height, mode, onOpen }: TreemapPr
                   opacity={0.85}
                   style={{ pointerEvents: 'none' }}
                 >
-                  {formatBytes(ref.sizeBytes)}
+                  {formatBytes(ref.sizeBytes, t)}
                 </text>
               )}
             </g>

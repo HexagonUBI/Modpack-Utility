@@ -1,6 +1,12 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { ConfigEntry, ConfigReport, ConfigStatus, ModFile } from '@shared/types'
+import type {
+  ConfigEntry,
+  ConfigMatchReason,
+  ConfigReport,
+  ConfigStatus,
+  ModFile
+} from '@shared/types'
 import { isDirectory, isFile } from './fsutil'
 import { measureDirectory } from './sizes'
 
@@ -73,7 +79,7 @@ interface IndexedMod {
 interface MatchResult {
   mod: IndexedMod
   confidence: number
-  reason: string
+  reason: ConfigMatchReason
 }
 
 export async function readConfigs(
@@ -162,7 +168,7 @@ function classify(entryName: string, isDirectoryEntry: boolean, index: ModIndex)
       ownerModId: null,
       ownerModName: null,
       confidence: 1,
-      reason: 'Belongs to the mod loader, not to a mod'
+      reason: { kind: 'system' }
     }
   }
 
@@ -183,7 +189,7 @@ function classify(entryName: string, isDirectoryEntry: boolean, index: ModIndex)
       ownerModId: null,
       ownerModName: null,
       confidence: 0,
-      reason: 'No mods were found to compare against'
+      reason: { kind: 'noMods' }
     }
   }
 
@@ -192,7 +198,7 @@ function classify(entryName: string, isDirectoryEntry: boolean, index: ModIndex)
     ownerModId: null,
     ownerModName: null,
     confidence: 0,
-    reason: 'No installed mod matches this name - likely left behind by a removed mod'
+    reason: { kind: 'noMatch' }
   }
 }
 
@@ -280,35 +286,53 @@ function findBestMatch(base: string, index: ModIndex): MatchResult | null {
         confidence: scale,
         reason:
           coverage === 1
-            ? `Exactly matches mod id "${exact.modId}"`
-            : `Named after mod id "${exact.modId}"`
+            ? { kind: 'exactModId', modId: exact.modId }
+            : { kind: 'namedAfterModId', modId: exact.modId }
       }
     }
 
     const byId = index.byNormalisedId.get(normalised)
-    if (byId) return { mod: byId, confidence: 0.92 * scale, reason: `Matches mod id "${byId.modId}"` }
+    if (byId) {
+      return {
+        mod: byId,
+        confidence: 0.92 * scale,
+        reason: { kind: 'normalisedModId', modId: byId.modId }
+      }
+    }
 
     const byBundled = index.byBundledConfig.get(normalised)
     if (byBundled) {
       return {
         mod: byBundled,
         confidence: 0.85 * scale,
-        reason: `${byBundled.name} ships a default config with this name`
+        reason: { kind: 'bundledConfig', modName: byBundled.name }
       }
     }
 
     const byName = index.byNormalisedName.get(normalised)
-    if (byName) return { mod: byName, confidence: 0.82 * scale, reason: `Matches mod name "${byName.name}"` }
+    if (byName) {
+      return {
+        mod: byName,
+        confidence: 0.82 * scale,
+        reason: { kind: 'modName', modName: byName.name }
+      }
+    }
 
     const byFile = index.byFileBase.get(normalised)
-    if (byFile) return { mod: byFile, confidence: 0.7 * scale, reason: `Matches the filename of ${byFile.name}` }
+    if (byFile) {
+      return {
+        mod: byFile,
+        confidence: 0.7 * scale,
+        reason: { kind: 'fileName', modName: byFile.name }
+      }
+    }
 
     const byInitials = index.byAcronym.get(normalised)
     if (byInitials) {
       return {
         mod: byInitials,
         confidence: 0.6 * scale,
-        reason: `"${candidate}" is the initials of ${byInitials.name}`
+        reason: { kind: 'initials', candidate, modName: byInitials.name }
       }
     }
   }
@@ -332,7 +356,7 @@ function findPartialMatch(base: string, index: ModIndex): MatchResult | null {
 
       const confidence = 0.4 + coverage * 0.2
       if (!best || confidence > best.confidence) {
-        best = { mod, confidence, reason: `Name contains mod id "${mod.modId}"` }
+        best = { mod, confidence, reason: { kind: 'containsModId', modId: mod.modId } }
       }
       continue
     }
@@ -343,7 +367,7 @@ function findPartialMatch(base: string, index: ModIndex): MatchResult | null {
 
       const confidence = 0.3 + coverage * 0.2
       if (!best || confidence > best.confidence) {
-        best = { mod, confidence, reason: `Shortened form of mod id "${mod.modId}"` }
+        best = { mod, confidence, reason: { kind: 'shortenedModId', modId: mod.modId } }
       }
     }
   }

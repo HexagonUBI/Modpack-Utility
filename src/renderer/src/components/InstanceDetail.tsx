@@ -11,13 +11,12 @@ import {
   Tabs,
   Typography
 } from '@mui/material'
-import {
-  LAUNCHER_LABELS,
-  type Instance,
-  type InstanceAnalysis,
-  type ResourcePackReport,
-  type ScreenshotReport,
-  type StorageReport
+import type {
+  Instance,
+  InstanceAnalysis,
+  ResourcePackReport,
+  ScreenshotReport,
+  StorageReport
 } from '@shared/types'
 import type { ThemeMode } from '../theme'
 import OverviewTab from '../tabs/OverviewTab'
@@ -94,11 +93,11 @@ export default function InstanceDetail({
           <Typography variant="h5" sx={{ mr: 0.5 }}>
             {instance.name}
           </Typography>
-          <Chip size="small" label={LAUNCHER_LABELS[instance.launcher]} />
+          <Chip size="small" label={t.launchers[instance.launcher]} />
           {instance.minecraftVersion && (
             <Chip size="small" variant="outlined" label={instance.minecraftVersion} />
           )}
-          {instance.isServer && <Chip size="small" variant="outlined" label="Server" />}
+          {instance.isServer && <Chip size="small" variant="outlined" label={t.common.server} />}
         </Stack>
 
         <Tabs
@@ -127,7 +126,7 @@ export default function InstanceDetail({
       <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 2.5 }}>
         {analysisError && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            Could not read this instance: {analysisError}
+            {t.notices.analysisFailed(analysisError)}
           </Alert>
         )}
 
@@ -152,14 +151,14 @@ export default function InstanceDetail({
               onToggleEnabled={onToggleMod}
             />
           ) : (
-            <Loading label="Reading mod manifests..." />
+            <Loading label={t.loading.mods} />
           ))}
 
         {tab === 'dependencies' &&
           (analysis ? (
             <DependenciesTab report={analysis.mods} onShowMod={showMod} />
           ) : (
-            <Loading label="Resolving dependencies..." />
+            <Loading label={t.loading.dependencies} />
           ))}
 
         {tab === 'configs' &&
@@ -173,7 +172,7 @@ export default function InstanceDetail({
               onConfigSaved={onConfigSaved}
             />
           ) : (
-            <Loading label="Matching configs to mods..." />
+            <Loading label={t.loading.configs} />
           ))}
 
         {tab === 'storage' && (
@@ -198,7 +197,7 @@ export default function InstanceDetail({
               onToggleEnabled={onTogglePack}
             />
           ) : (
-            <Loading label="Reading resource packs..." />
+            <Loading label={t.loading.packs} />
           ))}
 
         {tab === 'screenshots' &&
@@ -211,7 +210,7 @@ export default function InstanceDetail({
               onPurge={onPurge}
             />
           ) : (
-            <Loading label="Listing screenshots..." />
+            <Loading label={t.loading.screenshots} />
           ))}
       </Box>
     </Stack>

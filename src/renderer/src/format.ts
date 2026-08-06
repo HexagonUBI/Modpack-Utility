@@ -1,17 +1,25 @@
-const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const
+import type { Messages } from './i18n'
 
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+export function formatBytes(bytes: number, t: Messages): string {
+  const units = [
+    t.units.bytes,
+    t.units.kilobytes,
+    t.units.megabytes,
+    t.units.gigabytes,
+    t.units.terabytes
+  ]
+
+  if (!Number.isFinite(bytes) || bytes <= 0) return `0 ${units[0]}`
 
   let value = bytes
   let unit = 0
-  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
+  while (value >= 1024 && unit < units.length - 1) {
     value /= 1024
     unit++
   }
 
   const decimals = unit === 0 ? 0 : value < 10 ? 2 : value < 100 ? 1 : 0
-  return `${value.toFixed(decimals)} ${BYTE_UNITS[unit]}`
+  return `${value.toFixed(decimals)} ${units[unit]}`
 }
 
 export function formatCount(value: number): string {
@@ -24,19 +32,21 @@ export function formatPercent(part: number, whole: number): string {
   return pct < 0.1 ? '<0.1%' : `${pct.toFixed(pct < 10 ? 1 : 0)}%`
 }
 
-export function formatDate(iso: string | null): string {
-  if (!iso) return 'Never'
+export function formatDate(iso: string | null, t: Messages): string {
+  if (!iso) return t.date.never
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return 'Unknown'
+  if (Number.isNaN(date.getTime())) return t.date.unknown
 
   const days = Math.floor((Date.now() - date.getTime()) / 86_400_000)
-  if (days <= 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 30) return `${days} days ago`
-  return date.toLocaleDateString()
+  if (days <= 0) return t.date.today
+  if (days === 1) return t.date.yesterday
+  if (days < 30) return t.date.daysAgo(days)
+  return date.toLocaleDateString('en-CA')
 }
 
-export function formatMemory(mb: number | null): string {
-  if (mb === null || mb <= 0) return 'Launcher default'
-  return mb >= 1024 ? `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB` : `${mb} MB`
+export function formatMemory(mb: number | null, t: Messages): string {
+  if (mb === null || mb <= 0) return t.common.launcherDefault
+  return mb >= 1024
+    ? `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} ${t.units.gigabytes}`
+    : `${mb} ${t.units.megabytes}`
 }

@@ -15,7 +15,6 @@ import CloseRounded from '@mui/icons-material/CloseRounded'
 import CreateNewFolderRounded from '@mui/icons-material/CreateNewFolderRounded'
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded'
 import {
-  ACCENT_LABELS,
   LANGUAGES,
   type AccentName,
   type AppSettings,
@@ -66,10 +65,10 @@ export default function SettingsPage({
             {ACCENT_ORDER.map((accent) => {
               const selected = settings.accent === accent
               return (
-                <Tooltip key={accent} title={ACCENT_LABELS[accent]}>
+                <Tooltip key={accent} title={t.accents[accent]}>
                   <Box
                     role="button"
-                    aria-label={ACCENT_LABELS[accent]}
+                    aria-label={t.accents[accent]}
                     aria-pressed={selected}
                     onClick={() => onChange({ accent })}
                     sx={{
@@ -99,7 +98,7 @@ export default function SettingsPage({
             {LANGUAGES.map((language) => (
               <MenuItem key={language.code} value={language.code}>
                 {language.label}
-                {language.translated ? '' : ' (incomplete)'}
+                {language.translated ? '' : ` (${t.settings.incompleteLanguage})`}
               </MenuItem>
             ))}
           </Select>

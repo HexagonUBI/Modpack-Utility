@@ -6,6 +6,7 @@ import CenterFocusStrongRounded from '@mui/icons-material/CenterFocusStrongRound
 import RemoveRounded from '@mui/icons-material/RemoveRounded'
 import { hasProblems, type ModFile } from '@shared/types'
 import { isImplicitModId } from '@shared/modIds'
+import { useT, type Messages } from '../i18n'
 
 const NODE_WIDTH = 156
 const NODE_HEIGHT = 30
@@ -66,6 +67,7 @@ export default function DependencyMap({
   onSelect,
   onClearSelection
 }: DependencyMapProps) {
+  const t = useT()
   const theme = useTheme()
   const { nodes, edges, extent } = useMemo(
 
@@ -204,7 +206,7 @@ export default function DependencyMap({
   if (nodes.length === 0) {
     return (
       <Typography variant="body2" sx={{ color: 'text.secondary', p: 2 }}>
-        No mods to draw.
+        {t.graph.nothingToDraw}
       </Typography>
     )
   }
@@ -253,7 +255,7 @@ export default function DependencyMap({
         }}
         style={{ cursor: 'grab', touchAction: 'none', display: 'block' }}
         role="img"
-        aria-label={`Dependency map of ${mods.length} mods`}
+        aria-label={t.graph.dependencyMapOf(mods.length)}
       >
         <g transform={`translate(${transform.x} ${transform.y}) scale(${transform.k})`}>
           {edges.map((edge) => {
@@ -314,7 +316,7 @@ export default function DependencyMap({
                   stroke={stroke}
                   strokeWidth={isSelected || broken ? 2 : 1}
                 />
-                <title>{describeNode(node.mod)}</title>
+                <title>{describeNode(node.mod, t)}</title>
                 <text
                   x={node.x + 9}
                   y={node.y + NODE_HEIGHT / 2}
@@ -346,18 +348,18 @@ export default function DependencyMap({
           p: 0.25
         }}
       >
-        <Tooltip title="Zoom out">
-          <IconButton size="small" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
+        <Tooltip title={t.graph.zoomOut}>
+          <IconButton size="small" aria-label={t.graph.zoomOut} onClick={() => zoomBy(1 / 1.25)}>
             <RemoveRounded fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Fit to view">
-          <IconButton size="small" aria-label="Fit to view" onClick={fit}>
+        <Tooltip title={t.graph.fitToView}>
+          <IconButton size="small" aria-label={t.graph.fitToView} onClick={fit}>
             <CenterFocusStrongRounded fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Zoom in">
-          <IconButton size="small" aria-label="Zoom in" onClick={() => zoomBy(1.25)}>
+        <Tooltip title={t.graph.zoomIn}>
+          <IconButton size="small" aria-label={t.graph.zoomIn} onClick={() => zoomBy(1.25)}>
             <AddRounded fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -367,7 +369,7 @@ export default function DependencyMap({
         variant="caption"
         sx={{ position: 'absolute', left: 10, bottom: 10, color: 'text.secondary' }}
       >
-        Hover a mod to trace its dependencies. Drag to pan, scroll to zoom.
+        {t.dependencies.hoverHint}
       </Typography>
     </Box>
   )
@@ -664,18 +666,20 @@ function link(from: MapNode, to: MapNode): string {
   return `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`
 }
 
-function describeNode(mod: ModFile): string {
+function describeNode(mod: ModFile, t: Messages): string {
   const name = mod.name ?? mod.fileName
   const parts: string[] = [name]
 
-  if (mod.problems.missing.length > 0) parts.push(`Missing: ${mod.problems.missing.join(', ')}`)
+  if (mod.problems.missing.length > 0) {
+    parts.push(t.graph.missingList(mod.problems.missing.join(', ')))
+  }
   if (mod.problems.disabledDependencies.length > 0) {
-    parts.push(`Disabled dependency: ${mod.problems.disabledDependencies.join(', ')}`)
+    parts.push(t.graph.disabledDependencyList(mod.problems.disabledDependencies.join(', ')))
   }
   if (mod.problems.conflictsWith.length > 0) {
-    parts.push(`Incompatible with: ${mod.problems.conflictsWith.join(', ')}`)
+    parts.push(t.graph.incompatibleList(mod.problems.conflictsWith.join(', ')))
   }
-  if (!mod.enabled) parts.push('This mod is disabled')
+  if (!mod.enabled) parts.push(t.graph.modIsDisabled)
 
   return parts.join('\n')
 }

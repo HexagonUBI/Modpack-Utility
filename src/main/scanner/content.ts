@@ -1,6 +1,7 @@
 import { readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type {
+  ContentResult,
   ResourcePackEntry,
   ResourcePackReport,
   ScreenshotEntry,
@@ -152,29 +153,29 @@ async function readIconFile(path: string): Promise<string | null> {
   }
 }
 
-export async function setModEnabled(path: string, enabled: boolean): Promise<string> {
+export async function setModEnabled(path: string, enabled: boolean): Promise<ContentResult> {
   const isDisabled = path.toLowerCase().endsWith('.disabled')
-  if (enabled === !isDisabled) return path
+  if (enabled === !isDisabled) return { ok: true, path, error: null, detail: null }
 
   const target = enabled ? path.replace(/\.disabled$/i, '') : `${path}.disabled`
 
   if (await isFile(target)) {
-    throw new Error(`${basename(target)} already exists in the mods folder.`)
+    return { ok: false, path: null, error: 'modFileExists', detail: basename(target) }
   }
 
   await rename(path, target)
-  return target
+  return { ok: true, path: target, error: null, detail: null }
 }
 
 export async function setResourcePackEnabled(
   gameDir: string,
   packName: string,
   enabled: boolean
-): Promise<void> {
+): Promise<ContentResult> {
   const optionsPath = join(gameDir, 'options.txt')
   const text = await readTextFile(optionsPath)
   if (text === null) {
-    throw new Error('This instance has no options.txt yet. Launch the game once and try again.')
+    return { ok: false, path: null, error: 'noOptionsFile', detail: null }
   }
 
   const newline = text.includes('\r\n') ? '\r\n' : '\n'
@@ -194,6 +195,7 @@ export async function setResourcePackEnabled(
   else lines.push(rendered)
 
   await writeFile(optionsPath, lines.join(newline), 'utf8')
+  return { ok: true, path: optionsPath, error: null, detail: null }
 }
 
 export async function readScreenshots(gameDir: string): Promise<ScreenshotReport> {

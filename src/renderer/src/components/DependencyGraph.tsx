@@ -3,14 +3,23 @@ import { useTheme, type Theme } from '@mui/material/styles'
 import { Box, Tooltip } from '@mui/material'
 import type { ModDependency, ModFile } from '@shared/types'
 import { isImplicitModId } from '@shared/modIds'
+import { useT, type Messages } from '../i18n'
 
 export type LinkState = 'satisfied' | 'missing' | 'disabled' | 'optional'
 
-export const LINK_STATE_LABELS: Record<LinkState, string> = {
-  satisfied: 'Installed',
-  missing: 'Missing',
-  disabled: 'Installed but disabled',
-  optional: 'Optional'
+export const LINK_STATES: LinkState[] = ['satisfied', 'missing', 'disabled', 'optional']
+
+export function linkStateLabel(state: LinkState, t: Messages): string {
+  switch (state) {
+    case 'satisfied':
+      return t.dependencies.installed
+    case 'missing':
+      return t.dependencies.missing
+    case 'disabled':
+      return t.dependencies.installedButDisabled
+    case 'optional':
+      return t.dependencies.optional
+  }
 }
 
 interface GraphNode {
@@ -45,11 +54,12 @@ export default function DependencyGraph({
   includeAbsentOptional,
   onSelect
 }: DependencyGraphProps) {
+  const t = useT()
   const theme = useTheme()
 
   const { requires, requiredBy } = useMemo(
-    () => buildNeighbours(focus, mods, includeAbsentOptional),
-    [focus, mods, includeAbsentOptional]
+    () => buildNeighbours(focus, mods, includeAbsentOptional, t),
+    [focus, mods, includeAbsentOptional, t]
   )
 
   const rows = Math.max(requires.length, requiredBy.length, 1)
@@ -82,7 +92,7 @@ export default function DependencyGraph({
       width={canvasWidth}
       height={height}
       role="img"
-      aria-label={`Dependencies of ${focus.name ?? focus.fileName}`}
+      aria-label={t.graph.dependenciesOf(focus.name ?? focus.fileName)}
     >
       {}
       {requiredBy.map((node, index) => (
@@ -116,6 +126,7 @@ export default function DependencyGraph({
           y={columnY(index, requiredBy.length)}
           colour={colours[node.state]}
           theme={theme}
+          t={t}
           onSelect={onSelect}
         />
       ))}
@@ -132,6 +143,7 @@ export default function DependencyGraph({
         y={centreY}
         colour={theme.palette.primary.main}
         theme={theme}
+        t={t}
         emphasis
         onSelect={onSelect}
       />
@@ -144,6 +156,7 @@ export default function DependencyGraph({
           y={columnY(index, requires.length)}
           colour={colours[node.state]}
           theme={theme}
+          t={t}
           onSelect={onSelect}
         />
       ))}
@@ -156,7 +169,7 @@ export default function DependencyGraph({
           fontSize={11.5}
           fill={theme.palette.text.secondary}
         >
-          Nothing requires this
+          {t.dependencies.nothingRequiresThis}
         </text>
       )}
       {!hasRight && (
@@ -167,7 +180,7 @@ export default function DependencyGraph({
           fontSize={11.5}
           fill={theme.palette.text.secondary}
         >
-          Requires nothing else
+          {t.dependencies.requiresNothing}
         </text>
       )}
     </svg>
@@ -208,11 +221,12 @@ interface NodeProps {
   y: number
   colour: string
   theme: Theme
+  t: Messages
   emphasis?: boolean
   onSelect: (mod: ModFile) => void
 }
 
-function Node({ node, x, y, colour, theme, emphasis, onSelect }: NodeProps) {
+function Node({ node, x, y, colour, theme, t, emphasis, onSelect }: NodeProps) {
   const maxChars = Math.floor((NODE_WIDTH - 20) / CHAR_WIDTH)
   const clickable = node.mod !== null
 
@@ -223,8 +237,8 @@ function Node({ node, x, y, colour, theme, emphasis, onSelect }: NodeProps) {
           <Box component="span" sx={{ display: 'block', fontWeight: 600 }}>
             {node.label}
           </Box>
-          {LINK_STATE_LABELS[node.state]}
-          {node.mod ? '' : '. Not present in the mods folder'}
+          {linkStateLabel(node.state, t)}
+          {node.mod ? '' : `. ${t.graph.notInModsFolder}`}
         </Box>
       }
       followCursor
@@ -266,7 +280,12 @@ interface Neighbours {
   requiredBy: GraphNode[]
 }
 
-function buildNeighbours(focus: ModFile, mods: ModFile[], includeAbsentOptional: boolean): Neighbours {
+function buildNeighbours(
+  focus: ModFile,
+  mods: ModFile[],
+  includeAbsentOptional: boolean,
+  t: Messages
+): Neighbours {
   const byId = new Map<string, ModFile>()
   for (const mod of mods) {
     if (mod.modId) byId.set(mod.modId.toLowerCase(), mod)
@@ -283,7 +302,7 @@ function buildNeighbours(focus: ModFile, mods: ModFile[], includeAbsentOptional:
         dependency.kind !== 'optional' ||
         byId.has(dependency.modId.toLowerCase())
     )
-    .map((dependency) => toNode(dependency, byId.get(dependency.modId.toLowerCase()) ?? null))
+    .map((dependency) => toNode(dependency, byId.get(dependency.modId.toLowerCase()) ?? null, t))
 
   const focusIds = new Set(
     [focus.modId, ...focus.provides].filter((id): id is string => Boolean(id)).map((id) => id.toLowerCase())
@@ -300,7 +319,7 @@ function buildNeighbours(focus: ModFile, mods: ModFile[], includeAbsentOptional:
     requiredBy.push({
       id: mod.filePath,
       label: mod.name ?? mod.fileName,
-      sublabel: link.kind === 'optional' ? 'optional dependency' : 'requires this',
+      sublabel: link.kind === 'optional' ? t.graph.optionalDependency : t.graph.requiresThis,
       state: link.kind === 'optional' ? 'optional' : mod.enabled ? 'satisfied' : 'disabled',
       mod
     })
@@ -312,7 +331,7 @@ function buildNeighbours(focus: ModFile, mods: ModFile[], includeAbsentOptional:
   return { requires: requires.sort(byState), requiredBy: requiredBy.sort(byState) }
 }
 
-function toNode(dependency: ModDependency, provider: ModFile | null): GraphNode {
+function toNode(dependency: ModDependency, provider: ModFile | null, t: Messages): GraphNode {
   const state: LinkState =
     dependency.kind === 'optional'
       ? 'optional'
@@ -325,7 +344,7 @@ function toNode(dependency: ModDependency, provider: ModFile | null): GraphNode 
   return {
     id: dependency.modId,
     label: provider?.name ?? dependency.modId,
-    sublabel: dependency.versionRange ?? LINK_STATE_LABELS[state],
+    sublabel: dependency.versionRange ?? linkStateLabel(state, t),
     state,
     mod: provider
   }

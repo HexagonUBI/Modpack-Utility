@@ -2,6 +2,7 @@ import type {
   AppSettings,
   ConfigDocument,
   ConfigWriteResult,
+  ContentResult,
   Instance,
   InstanceAnalysis,
   InstanceSize,
@@ -16,7 +17,7 @@ import type {
 
 export interface ModpackUtilityApi {
   scanInstances(): Promise<Instance[]>
-  addFolder(): Promise<Instance[]>
+  addFolder(title: string): Promise<Instance[]>
   instanceSizes(targets: Array<{ id: string; name: string; path: string }>): Promise<InstanceSize[]>
   listDirectory(path: string): Promise<SizeNode[]>
   readConfigFile(path: string): Promise<ConfigDocument>
@@ -31,8 +32,8 @@ export interface ModpackUtilityApi {
   resourcePacks(gameDir: string): Promise<ResourcePackReport>
   screenshots(gameDir: string): Promise<ScreenshotReport>
   thumbnails(paths: string[]): Promise<Record<string, string>>
-  setModEnabled(path: string, enabled: boolean): Promise<string>
-  setPackEnabled(gameDir: string, name: string, enabled: boolean): Promise<void>
+  setModEnabled(path: string, enabled: boolean): Promise<ContentResult>
+  setPackEnabled(gameDir: string, name: string, enabled: boolean): Promise<ContentResult>
   trash(paths: string[]): Promise<TrashResult[]>
   openPath(target: string): Promise<string>
   revealPath(target: string): Promise<void>

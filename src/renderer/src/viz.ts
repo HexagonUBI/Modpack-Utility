@@ -24,18 +24,6 @@ export const VIZ_GROUP_ORDER: VizGroup[] = [
   'other'
 ]
 
-export const VIZ_GROUP_LABELS: Record<VizGroup, string> = {
-  mods: 'Mods',
-  saves: 'Worlds',
-  resourcepacks: 'Resource packs',
-  shaderpacks: 'Shader packs',
-  maps: 'Map data',
-  backups: 'Backups',
-  cache: 'Caches',
-  logs: 'Logs & crashes',
-  other: 'Other'
-}
-
 const CATEGORY_TO_GROUP: Record<StorageCategory, VizGroup> = {
   mods: 'mods',
   saves: 'saves',
