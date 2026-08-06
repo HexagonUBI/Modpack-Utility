@@ -1,0 +1,4 @@
+{
+  "//": "Editor default. Real type checking runs both tsconfig.node.json and tsconfig.web.json via `npm run typecheck`.",
+  "extends": "./tsconfig.web.json"
+}
