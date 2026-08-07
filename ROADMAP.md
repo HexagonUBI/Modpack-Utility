@@ -46,6 +46,7 @@ missing:
 - Settings should have "Always Ask" for deletion, and then it would prompt you whether you want to permanently delete files or just move them to the recycle bin.
 - When scanning for anything (whether it's all instances in overview or storage page for an instance), stop highlighting "Smaller files" or "Smaller Instances" and actually track them/showcase in the data as well, for a better control of diskspace.
 - Cache latest scan until remeasuring is prompted or app is restarted (there is a bug that causes cache to purge whenever settings or something updates, like language or colorscheme which I need to fix)
+- When scanning disk space, when it shows a progress bar in the overview button, should also show a progress bar in the main frame where the scanning is happening, but only for each instance/file scanned. (In few words - overview button shows progress bar, main page should show one personally for each instance scanned so user knows that it's not stuck on loading)
 
 ## Dependencies
 
