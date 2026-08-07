@@ -3,6 +3,15 @@
 Things known to be wanted, not yet built.
 
 - Change logo font to Comfortaa
+- Ability to import/export files (for example import configs in the folder through a menu or drag&drop in a userfriendly way)
+- When scrolling around modlists or any other lists, selecting one or more items should show up the top panel with Deletion controls etc on top of the screen regardless of scroll
+- When selecting anything in modlist, selection should save when in other Instance tabs (resets if going out of instance itself)
+- Tracking of which mods are only for client and only for host (aka filtering for what to put on server and what to give for client, whats necessary, whats optional and whats not needed at all)
+- Ability to quick export an instance as a modpack in .mrpack, .zip and support for CurseForge & Prism Launchers.
+Exporting would have multiple options where you can choose in which launchers you can export the instance (along with asking for basic data like name, version and description, then converting it for each launcher pack properly). You could also be able to select a "For server" option, where it would additionally export a .zip archive with modpack specifically to put to server, if you have one.
+
+You can also choose which folders/files specifically are to be exported (server archive takes only specific ones by default which you can edit as well, but if any of them are checked out on normal export it will prompt you if you want them gone from server too). These are all cached/saved so when you're exporting next time they are still chosen like you did before (with a button to quickly reset that selection)
+If there are any new files appearing after latest export, it will highlight them as green (folder will have green circle next to it if there are new files inside of it), files that got removed since last export will still show up, but wont be interactable and just be highlighted with red (that one is hidden by default, can unhide them with a checkmark filter)
 
 ## Settings
 
@@ -18,6 +27,7 @@ missing:
   mechanical move rather than new work.
 - Per-instance overrides, so a single instance can be pinned to a different
   scan behaviour.
+- .json5 support
 
 ## Instance work
 
@@ -34,6 +44,8 @@ missing:
 - Clear the disposable categories (logs, crash reports, caches) in one action.
 - Watch a folder and update sizes live rather than on demand.
 - Settings should have "Always Ask" for deletion, and then it would prompt you whether you want to permanently delete files or just move them to the recycle bin.
+- When scanning for anything (whether it's all instances in overview or storage page for an instance), stop highlighting "Smaller files" or "Smaller Instances" and actually track them/showcase in the data as well, for a better control of diskspace.
+- Cache latest scan until remeasuring is prompted or app is restarted (there is a bug that causes cache to purge whenever settings or something updates, like language or colorscheme which I need to fix)
 
 ## Dependencies
 
@@ -54,6 +66,8 @@ new class of false positives. Worth revisiting with real data.
 ^ same system goes to Shaderpacks and Resourcepacks
 - When highlighting a mod in a map, instead of instant focus mode it should smoothly transition the zooming
 - When there are dependency errors, should have a panel at the right (that can be collapsed) instead of what it is right now (and have scroll ability)
+- When hovering over a mod in dependency tree map, should show a little popup with Mod's name, version and authors, as well as it's icon (should take around 0.30 seconds of hovering until it pops up like a tooltip)
+- Duplicate mod detection
 
 ## Attribution
 
@@ -66,3 +80,6 @@ but needs bytecode parsing, which is a large step up in complexity.
 ## Benchmark Tools
 
 A special tab (after overview) which would track whether you have an instance (or multiple) launched in the background, then track perfomance of it until you close it(or set manual mode where you start and stop benchmarking), which would then show all perfomance stats with average framerates, latency, memory usage etc (both in diagrams with history and some stats)
+
+## Notebook
+Notebook would be another tab where you can note things down per instance (and also see notes from other launchers)
