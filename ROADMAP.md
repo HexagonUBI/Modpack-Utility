@@ -3,15 +3,35 @@
 Things known to be wanted, not yet built.
 
 - Change logo font to Comfortaa
+
 - Ability to import/export files (for example import configs in the folder through a menu or drag&drop in a userfriendly way)
+
 - When scrolling around modlists or any other lists, selecting one or more items should show up the top panel with Deletion controls etc on top of the screen regardless of scroll
+
 - When selecting anything in modlist, selection should save when in other Instance tabs (resets if going out of instance itself)
+
 - Tracking of which mods are only for client and only for host (aka filtering for what to put on server and what to give for client, whats necessary, whats optional and whats not needed at all)
+
 - Ability to quick export an instance as a modpack in .mrpack, .zip and support for CurseForge & Prism Launchers.
 Exporting would have multiple options where you can choose in which launchers you can export the instance (along with asking for basic data like name, version and description, then converting it for each launcher pack properly). You could also be able to select a "For server" option, where it would additionally export a .zip archive with modpack specifically to put to server, if you have one.
 
 You can also choose which folders/files specifically are to be exported (server archive takes only specific ones by default which you can edit as well, but if any of them are checked out on normal export it will prompt you if you want them gone from server too). These are all cached/saved so when you're exporting next time they are still chosen like you did before (with a button to quickly reset that selection)
 If there are any new files appearing after latest export, it will highlight them as green (folder will have green circle next to it if there are new files inside of it), files that got removed since last export will still show up, but wont be interactable and just be highlighted with red (that one is hidden by default, can unhide them with a checkmark filter)
+
+- Feature to export used resources in instance:
+Mods list with this formatting
+
+Mods:
+mod-icon | mod-name(hyperlink) | version | authors
+ResourcePacks:
+[same thing]
+ShaderPacks:
+[same thing]
+
+- Feature to have a snapshot (automatically creates up to 5 snapshots which you can look through (only creates new one when something changes))
+You can "Pin" the snapshot with info you'd like, and then next snapshot will always base off it and show changes between the two.
+Those snapshots will let you generate a changelog in multiple ways: HTML, Plain Text, Markdown and in .md/.txt
+
 
 ## Settings
 
