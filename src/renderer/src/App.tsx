@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, CssBaseline, Snackbar, ThemeProvider } from '@mui/material'
 import {
   DEFAULT_SETTINGS,
@@ -14,6 +14,7 @@ import {
 } from '@shared/types'
 import { buildTheme, type ThemeMode } from './theme'
 import { I18nContext, messagesFor, type Messages } from './i18n'
+import { DeleteModeContext } from './deleteMode'
 import { formatCount } from './format'
 import { useAsyncData } from './hooks'
 import InstanceSidebar from './components/InstanceSidebar'
@@ -88,6 +89,11 @@ export default function App() {
   const analysis = useAsyncData(requestKey, loadAnalysis)
   const content = useAsyncData(requestKey, loadContent)
 
+  const messagesRef = useRef(messages)
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
   const progressText = useMemo(
     () => (progress === null ? null : describeProgress(progress, messages)),
     [progress, messages]
@@ -121,6 +127,10 @@ export default function App() {
     return saved
   }, [])
 
+  const notify = useCallback((pick: (t: Messages) => string) => {
+    setNotice(pick(messagesRef.current))
+  }, [])
+
   const rescan = useCallback(async () => {
     setScanning(true)
     try {
@@ -130,14 +140,14 @@ export default function App() {
       setSelectedId((current) =>
         current && found.some((instance) => instance.id === current) ? current : null
       )
-      if (found.length === 0) setNotice(messages.nav.noInstances)
+      if (found.length === 0) notify((t) => t.nav.noInstances)
     } catch {
-      setNotice(messages.notices.scanFailed)
+      notify((t) => t.notices.scanFailed)
     } finally {
       setScanning(false)
       setProgress(null)
     }
-  }, [messages])
+  }, [notify])
 
   useEffect(() => {
     void rescan()
@@ -145,7 +155,7 @@ export default function App() {
 
   const addFolder = useCallback(async () => {
     try {
-      const added = await window.api.addFolder(messages.nav.pickFolderTitle)
+      const added = await window.api.addFolder(messagesRef.current.nav.pickFolderTitle)
       if (added.length === 0) return
 
       setInstances((current) => {
@@ -155,11 +165,11 @@ export default function App() {
       })
       setInstanceSizes(null)
       setSettings(await window.api.getSettings())
-      setNotice(messages.notices.instancesAdded(added.length))
+      notify((t) => t.notices.instancesAdded(added.length))
     } catch {
-      setNotice(messages.notices.folderFailed)
+      notify((t) => t.notices.folderFailed)
     }
-  }, [messages])
+  }, [notify])
 
   const measureAll = useCallback(async () => {
     setMeasuringAll(true)
@@ -174,12 +184,12 @@ export default function App() {
       )
       setInstanceSizes(sizes)
     } catch {
-      setNotice(messages.notices.measureAllFailed)
+      notify((t) => t.notices.measureAllFailed)
     } finally {
       setMeasuringAll(false)
       setProgress(null)
     }
-  }, [instances, messages])
+  }, [instances, notify])
 
   const scanStorage = useCallback(async () => {
     if (!selected) return
@@ -190,28 +200,28 @@ export default function App() {
       const report = await window.api.analyseStorage(target.gameDir)
       setStorageById((current) => ({ ...current, [target.id]: report }))
     } catch {
-      setNotice(messages.notices.measureFailed)
+      notify((t) => t.notices.measureFailed)
     } finally {
       setStorageLoadingId(null)
       setProgress(null)
     }
-  }, [selected, messages])
+  }, [selected, notify])
 
-  const purge = useCallback(
-    async (paths: string[]) => {
+  const runPurge = useCallback(
+    async (paths: string[], permanent: boolean) => {
       if (paths.length === 0) return
       const target = selected
 
       setBusy(true)
       try {
-        const results = await window.api.trash(paths)
+        const results = await window.api.trash(paths, permanent)
         const failed = results.filter((result) => !result.ok)
         const moved = results.length - failed.length
 
-        setNotice(
+        notify((t) =>
           failed.length === 0
-            ? messages.notices.movedToBin(moved)
-            : messages.notices.movedPartly(moved, failed.length, failed[0]?.error ?? null)
+            ? t.notices.movedToBin(moved)
+            : t.notices.movedPartly(moved, failed.length, failed[0]?.error ?? null)
         )
 
         if (target) {
@@ -224,38 +234,48 @@ export default function App() {
         setInstanceSizes(null)
         setRefreshToken((token) => token + 1)
       } catch {
-        setNotice(messages.notices.purgeFailed)
+        notify((t) => t.notices.purgeFailed)
       } finally {
         setBusy(false)
       }
     },
-    [selected, messages]
+    [selected, notify]
+  )
+
+  const purge = useCallback(
+    (paths: string[], permanent: boolean) => {
+      if (paths.length === 0) return
+      void runPurge(paths, permanent)
+    },
+    [runPurge]
   )
 
   const runMutation = useCallback(
-    async (action: () => Promise<ContentResult>, failure: string) => {
+    async (action: () => Promise<ContentResult>, pickFailure: (t: Messages) => string) => {
       setBusy(true)
       try {
         const result = await action()
-        if (!result.ok) setNotice(describeContentError(result, messages, failure))
+        if (!result.ok) {
+          notify((t) => describeContentError(result, t, pickFailure(t)))
+        }
         setRefreshToken((token) => token + 1)
       } catch {
-        setNotice(failure)
+        notify(pickFailure)
       } finally {
         setBusy(false)
       }
     },
-    [messages]
+    [notify]
   )
 
   const toggleMod = useCallback(
     (path: string, enabled: boolean) => {
       void runMutation(
         () => window.api.setModEnabled(path, enabled),
-        messages.notices.modToggleFailed
+        (t) => t.notices.modToggleFailed
       )
     },
-    [runMutation, messages]
+    [runMutation]
   )
 
   const togglePack = useCallback(
@@ -264,10 +284,10 @@ export default function App() {
       const gameDir = selected.gameDir
       void runMutation(
         () => window.api.setPackEnabled(gameDir, name, enabled),
-        messages.notices.packToggleFailed
+        (t) => t.notices.packToggleFailed
       )
     },
-    [runMutation, selected, messages]
+    [runMutation, selected]
   )
 
   const reveal = useCallback((path: string) => {
@@ -285,6 +305,7 @@ export default function App() {
 
   return (
     <I18nContext.Provider value={messages}>
+    <DeleteModeContext.Provider value={settings.deleteMode}>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', height: '100vh', backgroundColor: 'background.default' }}>
@@ -343,7 +364,7 @@ export default function App() {
               onScanStorage={() => void scanStorage()}
               onReveal={reveal}
               onOpen={open}
-              onPurge={(paths) => void purge(paths)}
+              onPurge={purge}
               onConfigSaved={(message) => {
                 setNotice(message)
 
@@ -364,6 +385,7 @@ export default function App() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
     </ThemeProvider>
+    </DeleteModeContext.Provider>
     </I18nContext.Provider>
   )
 }

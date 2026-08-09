@@ -27,6 +27,9 @@ const CATEGORY_BY_SEGMENT: Record<string, StorageCategory> = {
   '.mixin.out': 'cache',
   '.index': 'cache',
   '.tmp': 'cache',
+  distant_horizons_server_data: 'lod',
+  distanthorizons: 'lod',
+  lodserverdata: 'lod',
   journeymap: 'maps',
   xaero: 'maps',
   xaerominimap: 'maps',
@@ -124,6 +127,7 @@ async function walk(
     fileCount: 0,
     isDirectory: true,
     category,
+    aggregatedCount: null,
     children: []
   }
 
@@ -153,6 +157,7 @@ async function walk(
       fileCount: 1,
       isDirectory: false,
       category,
+      aggregatedCount: null,
       children: null
     })
   }
@@ -174,6 +179,7 @@ async function walk(
         fileCount: measured.fileCount,
         isDirectory: true,
         category: childCategory,
+        aggregatedCount: null,
         children: null
       } satisfies SizeNode
     }
@@ -200,13 +206,14 @@ function pruneChildren(children: SizeNode[], state: WalkState): SizeNode[] {
   const rest = children.slice(MAX_CHILDREN_PER_NODE)
 
   const remainder: SizeNode = {
-    name: `${rest.length} smaller items`,
+    name: '',
     path: '',
     sizeBytes: rest.reduce((sum, child) => sum + child.sizeBytes, 0),
     fileCount: rest.reduce((sum, child) => sum + child.fileCount, 0),
     isDirectory: true,
     category: kept[0]?.category ?? 'other',
-    children: null
+    aggregatedCount: rest.length,
+    children: rest
   }
 
   kept.push(remainder)
@@ -246,6 +253,7 @@ export async function listDirectoryWithSizes(path: string): Promise<SizeNode[]> 
         fileCount: 1,
         isDirectory: false,
         category: 'other',
+        aggregatedCount: null,
         children: null
       })
       continue
@@ -261,7 +269,7 @@ export async function listDirectoryWithSizes(path: string): Promise<SizeNode[]> 
       fileCount: measured.fileCount,
       isDirectory: true,
       category: 'other',
-
+      aggregatedCount: null,
       children: null
     })
   }

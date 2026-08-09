@@ -18,6 +18,7 @@ import {
   LANGUAGES,
   type AccentName,
   type AppSettings,
+  type DeleteMode,
   type ThemePreference
 } from '@shared/types'
 import { accentColour, type ThemeMode } from '../theme'
@@ -163,9 +164,20 @@ export default function SettingsPage({
         </Section>
 
         <Section title={t.settings.deleting} detail={t.settings.deletingDetail}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {t.settings.recycleBinOnly}
-          </Typography>
+          <Stack spacing={1}>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={settings.deleteMode}
+              onChange={(_event, next: DeleteMode | null) => next && onChange({ deleteMode: next })}
+            >
+              <ToggleButton value="recycle">{t.settings.recycleBinOnly}</ToggleButton>
+              <ToggleButton value="ask">{t.settings.alwaysAsk}</ToggleButton>
+            </ToggleButtonGroup>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t.settings.deleteModeDetail}
+            </Typography>
+          </Stack>
         </Section>
       </Stack>
     </Box>

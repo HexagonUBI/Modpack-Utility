@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, parse } from 'node:path'
 import type {
   AppSettings,
@@ -239,8 +240,14 @@ export function registerIpcHandlers(): void {
     return result
   })
 
-  ipcMain.handle(CHANNELS.trash, async (_event, paths: unknown): Promise<TrashResult[]> => {
+  ipcMain.handle(CHANNELS.trash, async (_event, request: unknown): Promise<TrashResult[]> => {
+    const record = (typeof request === 'object' && request !== null ? request : {}) as Record<
+      string,
+      unknown
+    >
+    const paths = record['paths']
     if (!Array.isArray(paths)) throw new Error('Expected an array of paths')
+    const permanent = record['permanent'] === true
 
     const results: TrashResult[] = []
     for (const value of paths) {
@@ -257,7 +264,8 @@ export function registerIpcHandlers(): void {
       }
 
       try {
-        await shell.trashItem(path)
+        if (permanent) await rm(path, { recursive: true, force: true })
+        else await shell.trashItem(path)
         results.push({ path, ok: true, error: null })
       } catch (error) {
         results.push({

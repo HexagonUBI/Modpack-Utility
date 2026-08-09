@@ -47,11 +47,26 @@ export function parseJsonLoose<T = unknown>(text: string): T | null {
   } catch {
   }
 
+  const stripped = stripJsonExtras(text)
   try {
-    return JSON.parse(stripJsonExtras(text)) as T
+    return JSON.parse(stripped) as T
+  } catch {
+  }
+
+  try {
+    return JSON.parse(relaxJson5(stripped)) as T
   } catch {
     return null
   }
+}
+
+const UNQUOTED_KEY = /([{,]\s*)([A-Za-z_$][\w$.-]*)(\s*:)/g
+const SINGLE_QUOTED = /'((?:[^'\\]|\\.)*)'/g
+
+function relaxJson5(text: string): string {
+  return text
+    .replace(UNQUOTED_KEY, '$1"$2"$3')
+    .replace(SINGLE_QUOTED, (_match, inner: string) => `"${inner.replace(/"/g, '\\"')}"`)
 }
 
 function stripJsonExtras(text: string): string {

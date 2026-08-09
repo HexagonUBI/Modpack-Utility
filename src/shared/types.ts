@@ -43,6 +43,38 @@ export interface Instance {
 
 export type ModLoaderType = 'fabric' | 'quilt' | 'forge' | 'neoforge' | 'legacy-forge' | 'unknown'
 
+export type ModParseError = { kind: 'noManifest' } | { kind: 'unreadable'; detail: string }
+
+export type ModSide = 'client' | 'server' | 'both'
+
+export type SideRequirement = 'required' | 'optional' | 'unsupported'
+
+export type ModSideSource =
+  | 'declared'
+  | 'entrypoints'
+  | 'mixins'
+  | 'contents'
+  | 'modrinth'
+  | 'loaderDefault'
+
+export interface ModSideInfo {
+  client: SideRequirement
+
+  server: SideRequirement
+
+  source: ModSideSource
+}
+
+export function sideOf(info: ModSideInfo): ModSide {
+  if (info.server === 'unsupported') return 'client'
+  if (info.client === 'unsupported') return 'server'
+  return 'both'
+}
+
+export function isOptionalSomewhere(info: ModSideInfo): boolean {
+  return info.client === 'optional' || info.server === 'optional'
+}
+
 export type DependencyKind = 'required' | 'optional' | 'incompatible'
 
 export interface ModDependency {
@@ -72,15 +104,18 @@ export interface ModFile {
   provides: string[]
   providedVersions: Record<string, string>
 
+  slug: string | null
+
   resourceNamespaces: string[]
 
   bundledConfigNames: string[]
-  environment: 'client' | 'server' | 'both' | null
+
+  side: ModSideInfo
 
   iconDataUrl: string | null
 
   problems: ModProblems
-  parseError: string | null
+  parseError: ModParseError | null
 }
 
 export interface ModProblems {
@@ -137,6 +172,7 @@ export type ConfigMatchReason =
   | { kind: 'namedAfterModId'; modId: string }
   | { kind: 'normalisedModId'; modId: string }
   | { kind: 'bundledConfig'; modName: string }
+  | { kind: 'slug'; slug: string }
   | { kind: 'modName'; modName: string }
   | { kind: 'fileName'; modName: string }
   | { kind: 'initials'; candidate: string; modName: string }
@@ -182,12 +218,13 @@ export type StorageCategory =
   | 'backups'
   | 'cache'
   | 'maps'
+  | 'lod'
   | 'screenshots'
   | 'libraries'
   | 'versions'
   | 'other'
 
-export const DISPOSABLE_CATEGORIES: StorageCategory[] = ['logs', 'crashes', 'cache']
+export const DISPOSABLE_CATEGORIES: StorageCategory[] = ['logs', 'crashes', 'cache', 'lod']
 
 export interface SizeNode {
   name: string
@@ -196,6 +233,8 @@ export interface SizeNode {
   fileCount: number
   isDirectory: boolean
   category: StorageCategory
+
+  aggregatedCount: number | null
 
   children: SizeNode[] | null
 }
@@ -326,6 +365,8 @@ export type AccentName = 'red' | 'green' | 'blue' | 'violet' | 'amber' | 'slate'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 
+export type DeleteMode = 'recycle' | 'ask'
+
 export interface LanguageOption {
   code: string
 
@@ -344,6 +385,8 @@ export interface AppSettings {
   accent: AccentName
   language: string
 
+  deleteMode: DeleteMode
+
   extraFolders: string[]
 }
 
@@ -351,6 +394,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   accent: 'red',
   language: 'en',
+  deleteMode: 'recycle',
   extraFolders: []
 }
 

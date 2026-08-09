@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
@@ -15,11 +13,12 @@ import {
   Tooltip,
   Typography
 } from '@mui/material'
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
 import PhotoLibraryOutlined from '@mui/icons-material/PhotoLibraryOutlined'
 import type { ScreenshotEntry, ScreenshotReport } from '@shared/types'
 import { formatBytes, formatDate } from '../format'
 import EmptyState from '../components/EmptyState'
+import SelectionBar from '../components/SelectionBar'
+import PurgeActions from '../components/PurgeActions'
 import { useT, type Messages } from '../i18n'
 
 type SortKey = 'newest' | 'oldest' | 'largest'
@@ -29,7 +28,7 @@ interface ScreenshotsTabProps {
   busy: boolean
   onOpen: (path: string) => void
   onReveal: (path: string) => void
-  onPurge: (paths: string[]) => void
+  onPurge: (paths: string[], permanent: boolean) => void
 }
 
 const PAGE_SIZE = 60
@@ -145,11 +144,6 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
         >
           {t.screenshots.selectLarge(large.length)}
         </Button>
-        {selected.size > 0 && (
-          <Button size="small" onClick={() => setSelected(new Set())}>
-            {t.common.clearSelection}
-          </Button>
-        )}
         <Box sx={{ flex: 1 }} />
         <ToggleButtonGroup
           size="small"
@@ -163,26 +157,13 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
         </ToggleButtonGroup>
       </Stack>
 
-      {selected.size > 0 && (
-        <Alert
-          severity="info"
-          icon={false}
-          action={
-            <Button
-              color="error"
-              size="small"
-              variant="contained"
-              startIcon={<DeleteOutlineRounded />}
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-            >
-              {t.common.moveToRecycleBin}
-            </Button>
-          }
-        >
-          {t.common.selected(selected.size, formatBytes(selectedBytes, t))}
-        </Alert>
-      )}
+      <SelectionBar
+        count={selected.size}
+        size={formatBytes(selectedBytes, t)}
+        busy={busy}
+        onClear={() => setSelected(new Set())}
+        onPurge={() => setConfirming(true)}
+      />
 
       <Box
         sx={{
@@ -218,19 +199,16 @@ export default function ScreenshotsTab({ report, busy, onOpen, onReveal, onPurge
             {t.screenshots.purgeDetail(formatBytes(selectedBytes, t))}
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(false)}>{t.common.cancel}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => {
-              setConfirming(false)
-              onPurge(selectedShots.map((shot) => shot.path))
-            }}
-          >
-            {t.common.moveToRecycleBin}
-          </Button>
-        </DialogActions>
+        <PurgeActions
+          onCancel={() => setConfirming(false)}
+          onConfirm={(permanent) => {
+            setConfirming(false)
+            onPurge(
+              selectedShots.map((shot) => shot.path),
+              permanent
+            )
+          }}
+        />
       </Dialog>
     </Stack>
   )

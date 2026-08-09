@@ -7,7 +7,6 @@ import {
   Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
@@ -27,7 +26,6 @@ import {
   Tooltip,
   Typography
 } from '@mui/material'
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded'
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded'
 import FolderRounded from '@mui/icons-material/FolderRounded'
@@ -44,6 +42,8 @@ import type {
 import { formatBytes } from '../format'
 import EmptyState from '../components/EmptyState'
 import ConfigEditor from '../components/ConfigEditor'
+import SelectionBar from '../components/SelectionBar'
+import PurgeActions from '../components/PurgeActions'
 import {
   applyDirection,
   compareFoldersFirst,
@@ -60,11 +60,11 @@ interface ConfigsTabProps {
   busy: boolean
   onReveal: (path: string) => void
   onOpen: (path: string) => void
-  onPurge: (paths: string[]) => void
+  onPurge: (paths: string[], permanent: boolean) => void
   onConfigSaved: (message: string) => void
 }
 
-const EDITABLE_EXTENSION = /\.(toml|json|properties|cfg|txt)$/i
+const EDITABLE_EXTENSION = /\.(toml|json5?|jsonc|properties|cfg|conf|hocon|ini|txt)$/i
 
 export function isEditableConfig(name: string): boolean {
   return EDITABLE_EXTENSION.test(name)
@@ -131,6 +131,8 @@ export function describeConfigReason(reason: ConfigMatchReason, t: Messages): st
       return t.configReason.normalisedModId(reason.modId)
     case 'bundledConfig':
       return t.configReason.bundledConfig(reason.modName)
+    case 'slug':
+      return t.configReason.slug(reason.slug)
     case 'modName':
       return t.configReason.modName(reason.modName)
     case 'fileName':
@@ -312,33 +314,15 @@ export default function ConfigsTab({
             </Tooltip>
           )
         })}
-        {selected.size > 0 && (
-          <Button size="small" onClick={() => setSelected(new Set())}>
-            {t.common.clearSelection}
-          </Button>
-        )}
       </Stack>
 
-      {selected.size > 0 && (
-        <Alert
-          severity="info"
-          icon={false}
-          action={
-            <Button
-              color="error"
-              size="small"
-              variant="contained"
-              startIcon={<DeleteOutlineRounded />}
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-            >
-              {t.common.moveToRecycleBin}
-            </Button>
-          }
-        >
-          {t.common.selected(selected.size, formatBytes(selectedBytes, t))}
-        </Alert>
-      )}
+      <SelectionBar
+        count={selected.size}
+        size={formatBytes(selectedBytes, t)}
+        busy={busy}
+        onClear={() => setSelected(new Set())}
+        onPurge={() => setConfirming(true)}
+      />
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ alignItems: { md: 'center' } }}>
         <TextField
@@ -470,19 +454,16 @@ export default function ConfigsTab({
             </Alert>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(false)}>{t.common.cancel}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => {
-              setConfirming(false)
-              onPurge(selectedEntries.map((entry) => entry.path))
-            }}
-          >
-            {t.common.moveToRecycleBin}
-          </Button>
-        </DialogActions>
+        <PurgeActions
+          onCancel={() => setConfirming(false)}
+          onConfirm={(permanent) => {
+            setConfirming(false)
+            onPurge(
+              selectedEntries.map((entry) => entry.path),
+              permanent
+            )
+          }}
+        />
       </Dialog>
     </Stack>
   )

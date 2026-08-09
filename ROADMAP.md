@@ -2,15 +2,19 @@
 
 Things known to be wanted, not yet built.
 
-- Change logo font to Comfortaa
-
 - Ability to import/export files (for example import configs in the folder through a menu or drag&drop in a userfriendly way)
-
-- When scrolling around modlists or any other lists, selecting one or more items should show up the top panel with Deletion controls etc on top of the screen regardless of scroll
 
 - When selecting anything in modlist, selection should save when in other Instance tabs (resets if going out of instance itself)
 
-- Tracking of which mods are only for client and only for host (aka filtering for what to put on server and what to give for client, whats necessary, whats optional and whats not needed at all)
+- Client/host tracking is accurate where the evidence allows and says "both"
+  where it does not. Measured against the Modrinth cache as ground truth, the
+  heuristic path is 66/66 correct; before the rework it was 181/235, with 30
+  both-sided libraries wrongly called client-only. Forge and NeoForge packs are
+  mostly "both" because their bytecode cannot distinguish a client-only mod from
+  a both-sided one - the only way to improve them is more authoritative data.
+  Worth doing next: query the Modrinth and CurseForge APIs for mods missing from
+  the local cache, which would cover the Forge packs and would also fill in the
+  required/optional split for mods the launcher has never downloaded.
 
 - Ability to quick export an instance as a modpack in .mrpack, .zip and support for CurseForge & Prism Launchers.
 Exporting would have multiple options where you can choose in which launchers you can export the instance (along with asking for basic data like name, version and description, then converting it for each launcher pack properly). You could also be able to select a "For server" option, where it would additionally export a .zip archive with modpack specifically to put to server, if you have one.
@@ -36,22 +40,17 @@ Those snapshots will let you generate a changelog in multiple ways: HTML, Plain 
 ## Settings
 
 The settings screen exists and persists theme, accent colour, language and extra
-scan folders to `settings.json` in the per-user data directory. What is still
-missing:
+scan folders to `settings.json` in the per-user data directory. Translation is
+complete: every string the interface shows is in `i18n.ts` in English, Russian
+and Ukrainian, including insight text, progress messages, config attribution
+reasons and error messages. What is still missing:
 
-- **Finish the translation coverage.** English, Russian and Ukrainian all exist
-  in `i18n.ts` and the shell, overview, settings, tab bar and the main table
-  headers use them. Still hardcoded in English: the health and performance
-  insight text, and most of the longer explanatory sentences inside individual
-  tabs. The catalogue and the plumbing are done, so each remaining string is a
-  mechanical move rather than new work.
+- A fourth language would only need a new entry in `MESSAGES` and `LANGUAGES`.
 - Per-instance overrides, so a single instance can be pinned to a different
   scan behaviour.
-- .json5 support
 
 ## Instance work
 
-- Enable and disable mods in place, by renaming to and from `.disabled`.
 - Compare two instances and show what differs.
 - Remember previous scans so "this config appeared after you removed that mod"
   can be stated from history rather than inferred.
@@ -61,11 +60,11 @@ missing:
 
 ## Storage
 
-- Clear the disposable categories (logs, crash reports, caches) in one action.
 - Watch a folder and update sizes live rather than on demand.
-- Settings should have "Always Ask" for deletion, and then it would prompt you whether you want to permanently delete files or just move them to the recycle bin.
-- When scanning for anything (whether it's all instances in overview or storage page for an instance), stop highlighting "Smaller files" or "Smaller Instances" and actually track them/showcase in the data as well, for a better control of diskspace.
-- Cache latest scan until remeasuring is prompted or app is restarted (there is a bug that causes cache to purge whenever settings or something updates, like language or colorscheme which I need to fix)
+- Persist the latest scan across app restarts. Within a session it now survives
+  settings changes; the bug where changing the language re-ran the whole scan and
+  discarded measured sizes is fixed (`notify` in `App.tsx` keeps the scan
+  callbacks free of `messages`).
 - When scanning disk space, when it shows a progress bar in the overview button, should also show a progress bar in the main frame where the scanning is happening, but only for each instance/file scanned. (In few words - overview button shows progress bar, main page should show one personally for each instance scanned so user knows that it's not stuck on loading)
 
 ## Dependencies
@@ -93,10 +92,21 @@ new class of false positives. Worth revisiting with real data.
 ## Attribution
 
 Config-to-mod matching is a scored heuristic with several fallbacks (mod id,
-bundled default config names, asset namespaces, filenames, initials). The
+bundled default config names, Modrinth project slug, filenames, initials). The
 remaining misses are mods whose config name has no textual relationship to
 anything in the jar. Reading the mod's own class constants would close that gap
 but needs bytecode parsing, which is a large step up in complexity.
+
+Two cheaper ideas were tried and rejected against the real 243-config instance,
+so do not re-add them without new evidence:
+
+- **Asset namespaces.** A jar containing `data/byg/` does not own `byg` - mods
+  ship compat data under other mods' namespaces, so this attributed the BYG
+  config to Create Railways. `resourceNamespaces` is still parsed but is not
+  safe as a matching key on its own.
+- **Sniffing the config text for a known mod id.** Mod ids that are ordinary
+  words (`create`, `flow`, `ears`) matched inside prose and comments, giving 28
+  matches of which none were right.
 
 ## Benchmark Tools
 

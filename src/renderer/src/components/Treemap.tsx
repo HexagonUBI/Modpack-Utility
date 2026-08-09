@@ -63,6 +63,8 @@ export default function Treemap({ node, width, height, mode, onOpen }: TreemapPr
         const h = Math.max(0, tile.y1 - tile.y0)
         if (w < 1 || h < 1) return null
 
+        const label =
+          ref.aggregatedCount === null ? ref.name : t.storage.smallerItems(ref.aggregatedCount)
         const fill = colourForCategory(ref.category, mode)
         const ink = inkOnFill(fill)
         const showLabel = w >= LABEL_MIN_WIDTH && h >= LABEL_MIN_HEIGHT
@@ -76,7 +78,7 @@ export default function Treemap({ node, width, height, mode, onOpen }: TreemapPr
             title={
               <Box component="span" sx={{ display: 'block' }}>
                 <Box component="span" sx={{ display: 'block', fontWeight: 700 }}>
-                  {ref.name}
+                  {label}
                 </Box>
                 {t.chart.shareOfFolder(
                   formatBytes(ref.sizeBytes, t),
@@ -113,7 +115,7 @@ export default function Treemap({ node, width, height, mode, onOpen }: TreemapPr
                   fontWeight={600}
                   style={{ pointerEvents: 'none' }}
                 >
-                  {truncate(ref.name, maxChars)}
+                  {truncate(label, maxChars)}
                 </text>
               )}
               {showSize && (

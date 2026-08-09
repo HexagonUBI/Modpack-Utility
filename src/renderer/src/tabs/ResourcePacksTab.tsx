@@ -7,7 +7,6 @@ import {
   Checkbox,
   Chip,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
@@ -17,19 +16,20 @@ import {
   Tooltip,
   Typography
 } from '@mui/material'
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import type { ResourcePackEntry, ResourcePackReport } from '@shared/types'
 import { formatBytes } from '../format'
 import EmptyState from '../components/EmptyState'
+import SelectionBar from '../components/SelectionBar'
+import PurgeActions from '../components/PurgeActions'
 import { useT, type Messages } from '../i18n'
 
 interface ResourcePacksTabProps {
   report: ResourcePackReport
   busy: boolean
   onReveal: (path: string) => void
-  onPurge: (paths: string[]) => void
+  onPurge: (paths: string[], permanent: boolean) => void
   onToggleEnabled: (name: string, enabled: boolean) => void
 }
 
@@ -116,33 +116,15 @@ export default function ResourcePacksTab({
         >
           {t.packs.selectInactive(inactive.length)}
         </Button>
-        {selected.size > 0 && (
-          <Button size="small" onClick={() => setSelected(new Set())}>
-            {t.common.clearSelection}
-          </Button>
-        )}
       </Stack>
 
-      {selected.size > 0 && (
-        <Alert
-          severity="info"
-          icon={false}
-          action={
-            <Button
-              color="error"
-              size="small"
-              variant="contained"
-              startIcon={<DeleteOutlineRounded />}
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-            >
-              {t.common.moveToRecycleBin}
-            </Button>
-          }
-        >
-          {t.common.selected(selected.size, formatBytes(selectedBytes, t))}
-        </Alert>
-      )}
+      <SelectionBar
+        count={selected.size}
+        size={formatBytes(selectedBytes, t)}
+        busy={busy}
+        onClear={() => setSelected(new Set())}
+        onPurge={() => setConfirming(true)}
+      />
 
       <Stack spacing={1}>
         {report.packs.map((pack) => (
@@ -176,19 +158,16 @@ export default function ResourcePacksTab({
             </Alert>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(false)}>{t.common.cancel}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => {
-              setConfirming(false)
-              onPurge(selectedPacks.map((pack) => pack.path))
-            }}
-          >
-            {t.common.moveToRecycleBin}
-          </Button>
-        </DialogActions>
+        <PurgeActions
+          onCancel={() => setConfirming(false)}
+          onConfirm={(permanent) => {
+            setConfirming(false)
+            onPurge(
+              selectedPacks.map((pack) => pack.path),
+              permanent
+            )
+          }}
+        />
       </Dialog>
     </Stack>
   )

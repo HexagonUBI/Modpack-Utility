@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type {
   AccentName,
+  ModSideSource,
   ConfigStatus,
   ConfigUnsupportedReason,
   ConfigWriteError,
@@ -104,6 +105,8 @@ export interface Messages {
     tryDifferentSearch: string
     selected: (count: number, size: string) => string
     moveToRecycleBin: string
+    deleteChoose: string
+    deletePermanently: string
     size: string
     files: string
     fileCount: (count: number) => string
@@ -141,6 +144,15 @@ export interface Messages {
     deleting: string
     deletingDetail: string
     recycleBinOnly: string
+    alwaysAsk: string
+    deleteModeDetail: string
+  }
+  deleteChoice: {
+    title: (count: number) => string
+    detail: string
+    permanentWarning: string
+    recycle: string
+    permanent: string
   }
   overview: {
     activeMods: string
@@ -173,6 +185,12 @@ export interface Messages {
     openAsOwnView: string
     legendEntry: (group: string, size: string) => string
     moreItems: (count: number) => string
+    disposable: string
+    disposableHint: string
+    clearDisposable: string
+    disposablePurgeTitle: (count: number) => string
+    disposablePurgeDetail: (size: string) => string
+    smallerItems: (count: number) => string
   }
   configs: {
     matchedToMod: string
@@ -235,6 +253,7 @@ export interface Messages {
     namedAfterModId: (modId: string) => string
     normalisedModId: (modId: string) => string
     bundledConfig: (modName: string) => string
+    slug: (slug: string) => string
     modName: (modName: string) => string
     fileName: (modName: string) => string
     initials: (candidate: string, modName: string) => string
@@ -256,9 +275,21 @@ export interface Messages {
     clientOnly: string
     serverOnly: string
     clientAndServer: string
+    side: string
+    sideAll: string
+    sideClientShort: string
+    sideServerShort: string
+    sideBothShort: string
+    sideClientServerOptional: string
+    sideServerClientOptional: string
+    sideBothOptional: string
+    sideSummary: (clientOnly: number, serverOnly: number) => string
+    sideSource: Record<ModSideSource, string>
+    sideTooltip: (side: string, source: string) => string
     noModsFolder: string
     noModsFolderDetail: string
     noManifest: (reason: string) => string
+    manifestMissing: string
   }
   dependencies: {
     withRequirements: string
@@ -556,6 +587,8 @@ const en: Messages = {
     tryDifferentSearch: 'Try a different search term or filter.',
     selected: (count, size) => `${count} selected, ${size}`,
     moveToRecycleBin: 'Move to recycle bin',
+    deleteChoose: 'Delete...',
+    deletePermanently: 'Delete permanently',
     size: 'Size',
     files: 'Files',
     fileCount: (count) => `${count} ${count === 1 ? 'file' : 'files'}`,
@@ -594,8 +627,18 @@ const en: Messages = {
     stopScanning: 'Stop scanning this folder',
     deleting: 'Deleting files',
     deletingDetail:
-      'Everything this app removes goes to the recycle bin, never a permanent delete. Config attribution is a heuristic, so a purge has to be reversible. There is deliberately no option to change this.',
-    recycleBinOnly: 'Recycle bin only.'
+      'Config attribution is a heuristic, so the recycle bin is the safe default and stays recommended. Always ask adds a permanent delete option to every removal prompt, which cannot be undone.',
+    recycleBinOnly: 'Recycle bin only',
+    alwaysAsk: 'Always ask',
+    deleteModeDetail:
+      'Recycle bin only sends everything to the recycle bin without asking. Always ask lets you choose the recycle bin or a permanent delete each time.'
+  },
+  deleteChoice: {
+    title: (count) => `How should ${count} ${count === 1 ? 'item' : 'items'} be removed?`,
+    detail: 'The recycle bin lets you put these back if a mod turns out to have needed them.',
+    permanentWarning: 'A permanent delete cannot be undone.',
+    recycle: 'Move to recycle bin',
+    permanent: 'Delete permanently'
   },
   overview: {
     activeMods: 'Active mods',
@@ -629,7 +672,16 @@ const en: Messages = {
       'Very deep or very wide folders are grouped for display. All sizes shown are exact totals.',
     openAsOwnView: 'Open as its own view',
     legendEntry: (group, size) => `${group} - ${size}`,
-    moreItems: (count) => `${count} more items not shown. Use Show in folder to see them all.`
+    moreItems: (count) => `${count} more items not shown. Use Show in folder to see them all.`,
+    disposable: 'Logs, crash reports, caches and map detail',
+    disposableHint:
+      'All of it is rebuilt on demand. Logs and caches come back on the next launch; Distant Horizons detail comes back only as you explore those worlds again.',
+    clearDisposable: 'Clear',
+    disposablePurgeTitle: (count) =>
+      `Move ${count} ${count === 1 ? 'folder' : 'folders'} to the recycle bin?`,
+    disposablePurgeDetail: (size) =>
+      `This frees ${size}. The game regenerates all of it, and nothing is deleted permanently.`,
+    smallerItems: (count) => `${count} smaller items`
   },
   configs: {
     matchedToMod: 'Matched to a mod',
@@ -669,7 +721,8 @@ const en: Messages = {
       `${count} installed ${count === 1 ? 'mod has' : 'mods have'} no config of their own`,
     modsWithoutConfigDetail:
       'Perfectly normal. Many mods need no configuration, and some write into another mod folder.',
-    purgeTitle: (count) => `Move ${count} config entries to the recycle bin?`,
+    purgeTitle: (count) =>
+      `Move ${count} config ${count === 1 ? 'entry' : 'entries'} to the recycle bin?`,
     purgeDetail: (size) =>
       `This frees ${size}. Nothing is deleted permanently, so you can restore from the recycle bin if a mod turns out to have needed one of these.`,
     purgeEntry: (path, owner) => (owner ? `${path}  (${owner})` : path),
@@ -711,6 +764,7 @@ const en: Messages = {
     namedAfterModId: (modId) => `Named after mod id "${modId}"`,
     normalisedModId: (modId) => `Matches mod id "${modId}"`,
     bundledConfig: (modName) => `${modName} ships a default config with this name`,
+    slug: (slug) => `Matches the Modrinth project name "${slug}"`,
     modName: (modName) => `Matches mod name "${modName}"`,
     fileName: (modName) => `Matches the filename of ${modName}`,
     initials: (candidate, modName) => `"${candidate}" is the initials of ${modName}`,
@@ -732,9 +786,29 @@ const en: Messages = {
     clientOnly: 'Client only',
     serverOnly: 'Server only',
     clientAndServer: 'Client and server',
+    side: 'Side',
+    sideAll: 'Any side',
+    sideClientShort: 'Client',
+    sideServerShort: 'Server',
+    sideBothShort: 'Both',
+    sideClientServerOptional: 'Client, optional on server',
+    sideServerClientOptional: 'Server, optional on client',
+    sideBothOptional: 'Optional on both',
+    sideSummary: (clientOnly, serverOnly) =>
+      `${clientOnly} client only, ${serverOnly} server only`,
+    sideSource: {
+      declared: 'the mod declares this itself',
+      entrypoints: 'read from the loader entrypoints it registers',
+      mixins: 'read from the mixin configs it ships',
+      contents: 'read from what the jar contains',
+      modrinth: 'taken from the Modrinth data the launcher already cached',
+      loaderDefault: 'nothing narrows it down, so the loader default of both sides applies'
+    },
+    sideTooltip: (side, source) => `${side} - ${source}.`,
     noModsFolder: 'No mods folder',
     noModsFolderDetail: 'This instance has no mods directory, so there is nothing to inspect here yet.',
-    noManifest: (reason) => `No readable manifest (${reason}). This is normal for libraries and coremods.`
+    noManifest: (reason) => `No readable manifest (${reason}). This is normal for libraries and coremods.`,
+    manifestMissing: 'no mod manifest found'
   },
   dependencies: {
     withRequirements: 'Mods with requirements',
@@ -815,7 +889,8 @@ const en: Messages = {
     noneInstalled: 'No resource packs installed',
     noneInstalledDetail:
       'Packs you add to the instance will be listed here with their size and load order.',
-    purgeTitle: (count) => `Move ${count} resource packs to the recycle bin?`,
+    purgeTitle: (count) =>
+      `Move ${count} resource ${count === 1 ? 'pack' : 'packs'} to the recycle bin?`,
     purgeDetail: (size) => `This frees ${size}. Nothing is deleted permanently.`,
     purgeEntry: (name, active) => `${name}${active ? '  (currently active)' : ''}`,
     activeWarning:
@@ -836,7 +911,8 @@ const en: Messages = {
     none: 'No screenshots',
     noneDetail: 'Screenshots taken in this instance will show up here, with sizes and bulk cleanup.',
     openFullSize: 'Open full size',
-    purgeTitle: (count) => `Move ${count} screenshots to the recycle bin?`,
+    purgeTitle: (count) =>
+      `Move ${count} ${count === 1 ? 'screenshot' : 'screenshots'} to the recycle bin?`,
     purgeDetail: (size) =>
       `This frees ${size}. Nothing is deleted permanently, so you can restore them from the recycle bin.`
   },
@@ -1061,6 +1137,8 @@ const ru: Messages = {
     tryDifferentSearch: 'Попробуйте другой запрос или фильтр.',
     selected: (count, size) => `Выбрано ${count}, ${size}`,
     moveToRecycleBin: 'В корзину',
+    deleteChoose: 'Удалить...',
+    deletePermanently: 'Удалить навсегда',
     size: 'Размер',
     files: 'Файлы',
     fileCount: (count) => `${count} ${slavicPlural(count, 'файл', 'файла', 'файлов')}`,
@@ -1100,8 +1178,19 @@ const ru: Messages = {
     stopScanning: 'Больше не сканировать эту папку',
     deleting: 'Удаление файлов',
     deletingDetail:
-      'Всё, что удаляет приложение, отправляется в корзину, а не удаляется навсегда. Сопоставление конфигов эвристическое, поэтому очистка должна быть обратимой. Это намеренно нельзя изменить.',
-    recycleBinOnly: 'Только в корзину.'
+      'Сопоставление конфигов эвристическое, поэтому корзина остаётся безопасным вариантом по умолчанию и рекомендуется. Режим «Всегда спрашивать» добавляет к каждому запросу удаления вариант безвозвратного удаления, которое нельзя отменить.',
+    recycleBinOnly: 'Только в корзину',
+    alwaysAsk: 'Всегда спрашивать',
+    deleteModeDetail:
+      'В режиме «Только в корзину» всё отправляется в корзину без вопросов. В режиме «Всегда спрашивать» каждый раз можно выбрать корзину или безвозвратное удаление.'
+  },
+  deleteChoice: {
+    title: (count) =>
+      `Как удалить ${count} ${slavicPlural(count, 'элемент', 'элемента', 'элементов')}?`,
+    detail: 'Из корзины файлы можно вернуть, если моду они всё же были нужны.',
+    permanentWarning: 'Безвозвратное удаление нельзя отменить.',
+    recycle: 'В корзину',
+    permanent: 'Удалить навсегда'
   },
   overview: {
     activeMods: 'Активные моды',
@@ -1135,7 +1224,17 @@ const ru: Messages = {
       'Очень глубокие или очень широкие папки сгруппированы для отображения. Все показанные размеры точны.',
     openAsOwnView: 'Открыть отдельно',
     legendEntry: (group, size) => `${group} - ${size}`,
-    moreItems: (count) => `Ещё ${count} элементов не показано. Откройте папку, чтобы увидеть все.`
+    moreItems: (count) => `Ещё ${count} элементов не показано. Откройте папку, чтобы увидеть все.`,
+    disposable: 'Логи, отчёты о сбоях, кэш и детализация карты',
+    disposableHint:
+      'Всё это создаётся заново по мере необходимости. Логи и кэш вернутся при следующем запуске, а детализация Distant Horizons - только по мере повторного исследования миров.',
+    clearDisposable: 'Очистить',
+    disposablePurgeTitle: (count) =>
+      `Переместить ${count} ${slavicPlural(count, 'папку', 'папки', 'папок')} в корзину?`,
+    disposablePurgeDetail: (size) =>
+      `Освободится ${size}. Игра создаст всё это заново, и ничего не удаляется навсегда.`,
+    smallerItems: (count) =>
+      `${count} ${slavicPlural(count, 'меньший элемент', 'меньших элемента', 'меньших элементов')}`
   },
   configs: {
     matchedToMod: 'Сопоставлено с модом',
@@ -1175,7 +1274,8 @@ const ru: Messages = {
       `${count} ${slavicPlural(count, 'установленный мод', 'установленных мода', 'установленных модов')} без собственного конфига`,
     modsWithoutConfigDetail:
       'Это нормально. Многим модам настройки не нужны, а некоторые пишут их в папку другого мода.',
-    purgeTitle: (count) => `Переместить ${count} записей конфигов в корзину?`,
+    purgeTitle: (count) =>
+      `Переместить ${count} ${slavicPlural(count, 'запись конфига', 'записи конфигов', 'записей конфигов')} в корзину?`,
     purgeDetail: (size) =>
       `Освободится ${size}. Ничего не удаляется навсегда, поэтому файлы можно восстановить из корзины, если мод всё же в них нуждался.`,
     purgeEntry: (path, owner) => (owner ? `${path}  (${owner})` : path),
@@ -1219,6 +1319,7 @@ const ru: Messages = {
     namedAfterModId: (modId) => `Назван по id мода «${modId}»`,
     normalisedModId: (modId) => `Совпадает с id мода «${modId}»`,
     bundledConfig: (modName) => `${modName} поставляет стандартный конфиг с таким именем`,
+    slug: (slug) => `Совпадает с именем проекта Modrinth «${slug}»`,
     modName: (modName) => `Совпадает с названием мода «${modName}»`,
     fileName: (modName) => `Совпадает с именем файла мода ${modName}`,
     initials: (candidate, modName) => `«${candidate}» - это инициалы мода ${modName}`,
@@ -1240,10 +1341,30 @@ const ru: Messages = {
     clientOnly: 'Только клиент',
     serverOnly: 'Только сервер',
     clientAndServer: 'Клиент и сервер',
+    side: 'Сторона',
+    sideAll: 'Любая сторона',
+    sideClientShort: 'Клиент',
+    sideServerShort: 'Сервер',
+    sideBothShort: 'Обе',
+    sideClientServerOptional: 'Клиент, на сервере необязателен',
+    sideServerClientOptional: 'Сервер, на клиенте необязателен',
+    sideBothOptional: 'Необязателен с обеих сторон',
+    sideSummary: (clientOnly, serverOnly) =>
+      `только клиент: ${clientOnly}, только сервер: ${serverOnly}`,
+    sideSource: {
+      declared: 'мод указывает это сам',
+      entrypoints: 'определено по точкам входа, которые он регистрирует',
+      mixins: 'определено по конфигам миксинов в составе мода',
+      contents: 'определено по содержимому jar',
+      modrinth: 'взято из данных Modrinth, уже сохранённых лаунчером',
+      loaderDefault: 'ничто не сужает выбор, поэтому действует стандарт загрузчика - обе стороны'
+    },
+    sideTooltip: (side, source) => `${side} - ${source}.`,
     noModsFolder: 'Нет папки mods',
     noModsFolderDetail: 'В этой сборке нет папки модов, поэтому смотреть пока нечего.',
     noManifest: (reason) =>
-      `Нет читаемого манифеста (${reason}). Это нормально для библиотек и коремодов.`
+      `Нет читаемого манифеста (${reason}). Это нормально для библиотек и коремодов.`,
+    manifestMissing: 'манифест мода не найден'
   },
   dependencies: {
     withRequirements: 'Моды с зависимостями',
@@ -1326,7 +1447,8 @@ const ru: Messages = {
     noneInstalled: 'Ресурспаки не установлены',
     noneInstalledDetail:
       'Паки, добавленные в сборку, появятся здесь с размером и порядком загрузки.',
-    purgeTitle: (count) => `Переместить ${count} ресурспаков в корзину?`,
+    purgeTitle: (count) =>
+      `Переместить ${count} ${slavicPlural(count, 'ресурспак', 'ресурспака', 'ресурспаков')} в корзину?`,
     purgeDetail: (size) => `Освободится ${size}. Ничего не удаляется навсегда.`,
     purgeEntry: (name, active) => `${name}${active ? '  (сейчас активен)' : ''}`,
     activeWarning:
@@ -1348,7 +1470,8 @@ const ru: Messages = {
     noneDetail:
       'Скриншоты, сделанные в этой сборке, появятся здесь с размерами и массовой очисткой.',
     openFullSize: 'Открыть в полном размере',
-    purgeTitle: (count) => `Переместить ${count} скриншотов в корзину?`,
+    purgeTitle: (count) =>
+      `Переместить ${count} ${slavicPlural(count, 'скриншот', 'скриншота', 'скриншотов')} в корзину?`,
     purgeDetail: (size) =>
       `Освободится ${size}. Ничего не удаляется навсегда, файлы можно восстановить из корзины.`
   },
@@ -1576,6 +1699,8 @@ const uk: Messages = {
     tryDifferentSearch: 'Спробуйте інший запит або фільтр.',
     selected: (count, size) => `Вибрано ${count}, ${size}`,
     moveToRecycleBin: 'До кошика',
+    deleteChoose: 'Видалити...',
+    deletePermanently: 'Видалити назавжди',
     size: 'Розмір',
     files: 'Файли',
     fileCount: (count) => `${count} ${slavicPlural(count, 'файл', 'файли', 'файлів')}`,
@@ -1615,8 +1740,19 @@ const uk: Messages = {
     stopScanning: 'Більше не сканувати цю теку',
     deleting: 'Видалення файлів',
     deletingDetail:
-      'Усе, що видаляє застосунок, потрапляє до кошика, а не видаляється назавжди. Зіставлення конфігів евристичне, тому очищення має бути оборотним. Це навмисно не можна змінити.',
-    recycleBinOnly: 'Лише до кошика.'
+      'Зіставлення конфігів евристичне, тому кошик лишається безпечним варіантом за замовчуванням і рекомендується. Режим «Завжди запитувати» додає до кожного запиту видалення варіант остаточного видалення, яке не можна скасувати.',
+    recycleBinOnly: 'Лише до кошика',
+    alwaysAsk: 'Завжди запитувати',
+    deleteModeDetail:
+      'У режимі «Лише до кошика» все потрапляє до кошика без запитань. У режимі «Завжди запитувати» щоразу можна вибрати кошик або остаточне видалення.'
+  },
+  deleteChoice: {
+    title: (count) =>
+      `Як видалити ${count} ${slavicPlural(count, 'елемент', 'елементи', 'елементів')}?`,
+    detail: 'З кошика файли можна повернути, якщо моду вони все ж були потрібні.',
+    permanentWarning: 'Остаточне видалення не можна скасувати.',
+    recycle: 'До кошика',
+    permanent: 'Видалити назавжди'
   },
   overview: {
     activeMods: 'Активні моди',
@@ -1650,7 +1786,17 @@ const uk: Messages = {
       'Дуже глибокі або дуже широкі теки згруповано для показу. Усі показані розміри точні.',
     openAsOwnView: 'Відкрити окремо',
     legendEntry: (group, size) => `${group} - ${size}`,
-    moreItems: (count) => `Ще ${count} елементів не показано. Відкрийте теку, щоб побачити всі.`
+    moreItems: (count) => `Ще ${count} елементів не показано. Відкрийте теку, щоб побачити всі.`,
+    disposable: 'Логи, звіти про збої, кеш і деталізація карти',
+    disposableHint:
+      'Усе це створюється заново за потреби. Логи та кеш повернуться під час наступного запуску, а деталізація Distant Horizons - лише в міру повторного дослідження світів.',
+    clearDisposable: 'Очистити',
+    disposablePurgeTitle: (count) =>
+      `Перемістити ${count} ${slavicPlural(count, 'теку', 'теки', 'тек')} до кошика?`,
+    disposablePurgeDetail: (size) =>
+      `Звільниться ${size}. Гра створить усе це заново, і нічого не видаляється назавжди.`,
+    smallerItems: (count) =>
+      `${count} ${slavicPlural(count, 'менший елемент', 'менші елементи', 'менших елементів')}`
   },
   configs: {
     matchedToMod: 'Зіставлено з модом',
@@ -1690,7 +1836,8 @@ const uk: Messages = {
       `${count} ${slavicPlural(count, 'встановлений мод', 'встановлені моди', 'встановлених модів')} без власного конфіга`,
     modsWithoutConfigDetail:
       'Це нормально. Багатьом модам налаштування не потрібні, а деякі пишуть їх у теку іншого мода.',
-    purgeTitle: (count) => `Перемістити ${count} записів конфігів до кошика?`,
+    purgeTitle: (count) =>
+      `Перемістити ${count} ${slavicPlural(count, 'запис конфіга', 'записи конфігів', 'записів конфігів')} до кошика?`,
     purgeDetail: (size) =>
       `Звільниться ${size}. Нічого не видаляється назавжди, тож файли можна відновити з кошика, якщо мод усе ж їх потребував.`,
     purgeEntry: (path, owner) => (owner ? `${path}  (${owner})` : path),
@@ -1734,6 +1881,7 @@ const uk: Messages = {
     namedAfterModId: (modId) => `Названо за id мода «${modId}»`,
     normalisedModId: (modId) => `Збігається з id мода «${modId}»`,
     bundledConfig: (modName) => `${modName} постачає стандартний конфіг із такою назвою`,
+    slug: (slug) => `Збігається з іменем проєкту Modrinth «${slug}»`,
     modName: (modName) => `Збігається з назвою мода «${modName}»`,
     fileName: (modName) => `Збігається з іменем файлу мода ${modName}`,
     initials: (candidate, modName) => `«${candidate}» - це ініціали мода ${modName}`,
@@ -1755,10 +1903,30 @@ const uk: Messages = {
     clientOnly: 'Лише клієнт',
     serverOnly: 'Лише сервер',
     clientAndServer: 'Клієнт і сервер',
+    side: 'Сторона',
+    sideAll: 'Будь-яка сторона',
+    sideClientShort: 'Клієнт',
+    sideServerShort: 'Сервер',
+    sideBothShort: 'Обидві',
+    sideClientServerOptional: 'Клієнт, на сервері необов\'язковий',
+    sideServerClientOptional: 'Сервер, на клієнті необов\'язковий',
+    sideBothOptional: 'Необов\'язковий з обох сторін',
+    sideSummary: (clientOnly, serverOnly) =>
+      `лише клієнт: ${clientOnly}, лише сервер: ${serverOnly}`,
+    sideSource: {
+      declared: 'мод вказує це сам',
+      entrypoints: 'визначено за точками входу, які він реєструє',
+      mixins: 'визначено за конфігами міксинів у складі мода',
+      contents: 'визначено за вмістом jar',
+      modrinth: 'узято з даних Modrinth, які лаунчер уже зберіг',
+      loaderDefault: 'ніщо не звужує вибір, тому діє стандарт завантажувача - обидві сторони'
+    },
+    sideTooltip: (side, source) => `${side} - ${source}.`,
     noModsFolder: 'Немає теки mods',
     noModsFolderDetail: 'У цій збірці немає теки модів, тому поки що немає на що дивитися.',
     noManifest: (reason) =>
-      `Немає читабельного маніфесту (${reason}). Це нормально для бібліотек і коремодів.`
+      `Немає читабельного маніфесту (${reason}). Це нормально для бібліотек і коремодів.`,
+    manifestMissing: 'маніфест мода не знайдено'
   },
   dependencies: {
     withRequirements: 'Моди із залежностями',
@@ -1841,7 +2009,8 @@ const uk: Messages = {
     noneInstalled: 'Ресурспаки не встановлено',
     noneInstalledDetail:
       'Паки, додані до збірки, з\'являться тут із розміром і порядком завантаження.',
-    purgeTitle: (count) => `Перемістити ${count} ресурспаків до кошика?`,
+    purgeTitle: (count) =>
+      `Перемістити ${count} ${slavicPlural(count, 'ресурспак', 'ресурспаки', 'ресурспаків')} до кошика?`,
     purgeDetail: (size) => `Звільниться ${size}. Нічого не видаляється назавжди.`,
     purgeEntry: (name, active) => `${name}${active ? '  (зараз активний)' : ''}`,
     activeWarning:
@@ -1863,7 +2032,8 @@ const uk: Messages = {
     noneDetail:
       'Знімки, зроблені в цій збірці, з\'являться тут із розмірами та масовим очищенням.',
     openFullSize: 'Відкрити в повному розмірі',
-    purgeTitle: (count) => `Перемістити ${count} знімків до кошика?`,
+    purgeTitle: (count) =>
+      `Перемістити ${count} ${slavicPlural(count, 'знімок', 'знімки', 'знімків')} до кошика?`,
     purgeDetail: (size) =>
       `Звільниться ${size}. Нічого не видаляється назавжди, файли можна відновити з кошика.`
   },

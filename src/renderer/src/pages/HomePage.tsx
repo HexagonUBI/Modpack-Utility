@@ -49,33 +49,17 @@ export default function HomePage({
   const ranked = useMemo(() => rankBySize(instances, sizes), [instances, sizes])
   const totalBytes = ranked.reduce((sum, entry) => sum + entry.sizeBytes, 0)
 
-  const slices = useMemo<DonutSlice[]>(() => {
-    if (ranked.length === 0) return []
-
-    const leading = ranked.slice(0, CATEGORICAL_SLOT_COUNT)
-    const rest = ranked.slice(CATEGORICAL_SLOT_COUNT)
-
-    const result: DonutSlice[] = leading.map((entry, index) => ({
-      key: entry.instance.id,
-      label: entry.instance.name,
-      value: entry.sizeBytes,
-      colour: categoricalColour(index, mode),
-      detail: formatBytes(entry.sizeBytes, t)
-    }))
-
-    if (rest.length > 0) {
-      const restBytes = rest.reduce((sum, entry) => sum + entry.sizeBytes, 0)
-      result.push({
-        key: 'other',
-        label: t.home.smallerInstances(rest.length),
-        value: restBytes,
-        colour: categoricalColour(CATEGORICAL_SLOT_COUNT, mode),
-        detail: formatBytes(restBytes, t)
-      })
-    }
-
-    return result
-  }, [ranked, mode, t])
+  const slices = useMemo<DonutSlice[]>(
+    () =>
+      ranked.map((entry, index) => ({
+        key: entry.instance.id,
+        label: entry.instance.name,
+        value: entry.sizeBytes,
+        colour: categoricalColour(index % CATEGORICAL_SLOT_COUNT, mode),
+        detail: formatBytes(entry.sizeBytes, t)
+      })),
+    [ranked, mode, t]
+  )
 
   return (
     <Box sx={{ height: '100%', overflowY: 'auto', px: 4, py: 3 }}>
@@ -157,17 +141,13 @@ export default function HomePage({
                 />
               </Box>
 
-              <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+              <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0, maxHeight: 420, overflowY: 'auto' }}>
                 {slices.map((slice) => (
                   <Stack
                     key={slice.key}
                     direction="row"
                     spacing={1.25}
-                    sx={{
-                      alignItems: 'center',
-                      cursor: slice.key === 'other' ? 'default' : 'pointer',
-                      py: 0.25
-                    }}
+                    sx={{ alignItems: 'center', cursor: 'pointer', py: 0.25 }}
                     onClick={() => {
                       const match = instances.find((instance) => instance.id === slice.key)
                       if (match) onSelect(match)

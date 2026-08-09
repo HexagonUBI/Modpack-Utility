@@ -24,9 +24,9 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import SettingsRounded from '@mui/icons-material/SettingsRounded'
 import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded'
-import ViewInArRounded from '@mui/icons-material/ViewInArRounded'
 import type { Instance, LauncherKind } from '@shared/types'
-import type { ThemeMode } from '../theme'
+import logoUrl from '../assets/logo.png'
+import { LOGO_FONT_STACK, type ThemeMode } from '../theme'
 import { useT, type Messages } from '../i18n'
 
 const FOOTER_BUTTON = {
@@ -85,8 +85,16 @@ export default function InstanceSidebar({
       }}
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', px: 2, pt: 2, pb: 1.5 }}>
-        <ViewInArRounded sx={{ color: 'primary.main' }} />
-        <Typography variant="h6" sx={{ flex: 1 }}>
+        <Box
+          component="img"
+          src={logoUrl}
+          alt=""
+          sx={{ width: 26, height: 26, flexShrink: 0, imageRendering: 'auto' }}
+        />
+        <Typography
+          variant="h6"
+          sx={{ flex: 1, fontFamily: LOGO_FONT_STACK, fontWeight: 700, letterSpacing: '0.01em' }}
+        >
           {t.appName}
         </Typography>
         <Tooltip title={mode === 'dark' ? t.nav.lightTheme : t.nav.darkTheme}>

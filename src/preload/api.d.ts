@@ -34,7 +34,7 @@ export interface ModpackUtilityApi {
   thumbnails(paths: string[]): Promise<Record<string, string>>
   setModEnabled(path: string, enabled: boolean): Promise<ContentResult>
   setPackEnabled(gameDir: string, name: string, enabled: boolean): Promise<ContentResult>
-  trash(paths: string[]): Promise<TrashResult[]>
+  trash(paths: string[], permanent: boolean): Promise<TrashResult[]>
   openPath(target: string): Promise<string>
   revealPath(target: string): Promise<void>
   onProgress(listener: (progress: ScanProgress) => void): () => void

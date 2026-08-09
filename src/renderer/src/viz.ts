@@ -30,6 +30,7 @@ const CATEGORY_TO_GROUP: Record<StorageCategory, VizGroup> = {
   resourcepacks: 'resourcepacks',
   shaderpacks: 'shaderpacks',
   maps: 'maps',
+  lod: 'maps',
   backups: 'backups',
   cache: 'cache',
   logs: 'logs',

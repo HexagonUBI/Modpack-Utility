@@ -74,7 +74,11 @@ interface IndexedMod {
   modId: string
   name: string
   enabled: boolean
+
+  slug: string | null
 }
+
+const MIN_SPECULATIVE_COVERAGE = 0.65
 
 interface MatchResult {
   mod: IndexedMod
@@ -211,7 +215,7 @@ interface ModIndex {
 
   byBundledConfig: Map<string, IndexedMod>
 
-  byNamespace: Map<string, IndexedMod>
+  bySlug: Map<string, IndexedMod>
 
   byAcronym: Map<string, IndexedMod>
   all: IndexedMod[]
@@ -225,7 +229,7 @@ function buildModIndex(mods: ModFile[]): ModIndex {
     byNormalisedName: new Map(),
     byFileBase: new Map(),
     byBundledConfig: new Map(),
-    byNamespace: new Map(),
+    bySlug: new Map(),
     byAcronym: new Map(),
     all: []
   }
@@ -237,7 +241,8 @@ function buildModIndex(mods: ModFile[]): ModIndex {
     const indexed: IndexedMod = {
       modId,
       name: mod.name ?? modId,
-      enabled: mod.enabled
+      enabled: mod.enabled,
+      slug: mod.slug
     }
     index.all.push(indexed)
 
@@ -253,6 +258,7 @@ function buildModIndex(mods: ModFile[]): ModIndex {
     for (const bundled of mod.bundledConfigNames) {
       addTo(index.byBundledConfig, normalise(bundled), indexed)
     }
+    if (mod.slug) addTo(index.bySlug, normalise(mod.slug), indexed)
     for (const source of [modId, mod.name]) {
       const initials = source ? acronym(source) : null
       if (initials) addTo(index.byAcronym, initials, indexed)
@@ -272,11 +278,13 @@ function addTo(map: Map<string, IndexedMod>, key: string, mod: IndexedMod): void
 function findBestMatch(base: string, index: ModIndex): MatchResult | null {
   const normalisedBase = normalise(base)
 
-  for (const candidate of candidateKeys(base)) {
+  for (const { key: candidate, speculative } of candidateKeys(base)) {
     const normalised = normalise(candidate)
     if (normalised.length === 0) continue
 
     const coverage = normalisedBase.length > 0 ? Math.min(1, normalised.length / normalisedBase.length) : 1
+    if (speculative && coverage < MIN_SPECULATIVE_COVERAGE) continue
+
     const scale = 0.75 + 0.25 * coverage
 
     const exact = index.byExactId.get(candidate)
@@ -306,6 +314,15 @@ function findBestMatch(base: string, index: ModIndex): MatchResult | null {
         mod: byBundled,
         confidence: 0.85 * scale,
         reason: { kind: 'bundledConfig', modName: byBundled.name }
+      }
+    }
+
+    const bySlug = index.bySlug.get(normalised)
+    if (bySlug && bySlug.slug) {
+      return {
+        mod: bySlug,
+        confidence: 0.88 * scale,
+        reason: { kind: 'slug', slug: bySlug.slug }
       }
     }
 
@@ -375,13 +392,19 @@ function findPartialMatch(base: string, index: ModIndex): MatchResult | null {
   return best
 }
 
-function candidateKeys(base: string): string[] {
-  const keys: string[] = []
-  const add = (key: string): void => {
-    if (key.length > 0 && !keys.includes(key)) keys.push(key)
+interface Candidate {
+  key: string
+
+  speculative: boolean
+}
+
+function candidateKeys(base: string): Candidate[] {
+  const keys: Candidate[] = []
+  const add = (key: string, speculative: boolean): void => {
+    if (key.length > 0 && !keys.some((entry) => entry.key === key)) keys.push({ key, speculative })
   }
 
-  add(base)
+  add(base, false)
 
   let reduced = base
 
@@ -389,7 +412,7 @@ function candidateKeys(base: string): string[] {
     const suffix = SIDE_SUFFIXES.find((candidate) => reduced.endsWith(candidate))
     if (!suffix) break
     reduced = reduced.slice(0, -suffix.length)
-    add(reduced)
+    add(reduced, false)
   }
 
   let trimmed = reduced
@@ -397,7 +420,7 @@ function candidateKeys(base: string): string[] {
     const cut = Math.max(trimmed.lastIndexOf('.'), trimmed.lastIndexOf('-'), trimmed.lastIndexOf('_'))
     if (cut <= 0) break
     trimmed = trimmed.slice(0, cut)
-    add(trimmed)
+    add(trimmed, true)
   }
 
   return keys

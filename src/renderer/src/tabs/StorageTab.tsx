@@ -4,6 +4,10 @@ import {
   Breadcrumbs,
   Button,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Link,
   Stack,
@@ -17,17 +21,19 @@ import {
   Typography
 } from '@mui/material'
 import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded'
+import CleaningServicesRounded from '@mui/icons-material/CleaningServicesRounded'
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded'
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded'
 import FolderRounded from '@mui/icons-material/FolderRounded'
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined'
 import StorageRounded from '@mui/icons-material/StorageRounded'
-import type { SizeNode, StorageReport } from '@shared/types'
+import { DISPOSABLE_CATEGORIES, type SizeNode, type StorageReport } from '@shared/types'
 import { formatBytes, formatCount, formatPercent } from '../format'
 import { colourForCategory, colourForGroup, groupForCategory, VIZ_GROUP_ORDER, type VizGroup } from '../viz'
 import type { ThemeMode } from '../theme'
 import Treemap from '../components/Treemap'
 import EmptyState from '../components/EmptyState'
+import PurgeActions from '../components/PurgeActions'
 import { useDirectoryExpansion, useElementSize, type DirectoryExpansion } from '../hooks'
 import {
   applyDirection,
@@ -42,24 +48,29 @@ interface StorageTabProps {
 
   rootLabel: string
   loading: boolean
+  busy: boolean
   progress: string | null
   mode: ThemeMode
   onScan: () => void
   onReveal: (path: string) => void
+  onPurge: (paths: string[], permanent: boolean) => void
 }
 
 export default function StorageTab({
   report,
   rootLabel,
   loading,
+  busy,
   progress,
   mode,
   onScan,
-  onReveal
+  onReveal,
+  onPurge
 }: StorageTabProps) {
   const t = useT()
 
   const [trail, setTrail] = useState<SizeNode[]>([])
+  const [confirmingCleanup, setConfirmingCleanup] = useState(false)
   const [sizeRef, size] = useElementSize<HTMLDivElement>()
   const expansion = useDirectoryExpansion()
 
@@ -85,6 +96,8 @@ export default function StorageTab({
   const current = trail.length > 0 ? trail[trail.length - 1]! : root
 
   const legend = useMemo(() => (root ? buildLegend(root) : []), [root])
+  const disposable = useMemo(() => (root ? collectDisposable(root) : []), [root])
+  const disposableBytes = disposable.reduce((sum, node) => sum + node.sizeBytes, 0)
 
   if (loading) {
     return (
@@ -131,6 +144,41 @@ export default function StorageTab({
           {t.storage.reMeasure}
         </Button>
       </Stack>
+
+      {disposable.length > 0 && (
+        <Stack
+          direction="row"
+          spacing={1.5}
+          useFlexGap
+          sx={{
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            p: 1.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1
+          }}
+        >
+          <CleaningServicesRounded fontSize="small" sx={{ color: 'text.secondary' }} />
+          <Box sx={{ flex: 1, minWidth: 220 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {t.storage.legendEntry(t.storage.disposable, formatBytes(disposableBytes, t))}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t.storage.disposableHint}
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            disabled={busy}
+            onClick={() => setConfirmingCleanup(true)}
+          >
+            {t.storage.clearDisposable}
+          </Button>
+        </Stack>
+      )}
 
       <Breadcrumbs sx={{ minHeight: 24 }}>
         <Link
@@ -227,9 +275,10 @@ export default function StorageTab({
           <TableBody>
             {children.map((child) => (
               <SizeRow
-                key={child.path || child.name}
+                key={child.path || 'aggregate'}
                 node={child}
                 t={t}
+                expansionKey={child.path || `${current.path}/#aggregate`}
                 depth={0}
                 total={current.sizeBytes}
                 mode={mode}
@@ -242,13 +291,55 @@ export default function StorageTab({
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog
+        open={confirmingCleanup}
+        onClose={() => setConfirmingCleanup(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t.storage.disposablePurgeTitle(disposable.length)}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {t.storage.disposablePurgeDetail(formatBytes(disposableBytes, t))}
+          </DialogContentText>
+          {disposable.map((node) => (
+            <Typography key={node.path} variant="body2" sx={{ fontFamily: 'ui-monospace, monospace' }}>
+              {t.storage.legendEntry(node.name, formatBytes(node.sizeBytes, t))}
+            </Typography>
+          ))}
+        </DialogContent>
+        <PurgeActions
+          onCancel={() => setConfirmingCleanup(false)}
+          onConfirm={(permanent) => {
+            setConfirmingCleanup(false)
+            onPurge(
+              disposable.map((node) => node.path),
+              permanent
+            )
+          }}
+        />
+      </Dialog>
     </Stack>
   )
+}
+
+function collectDisposable(root: SizeNode): SizeNode[] {
+  return (root.children ?? [])
+    .filter(
+      (child) =>
+        child.path !== '' &&
+        child.sizeBytes > 0 &&
+        DISPOSABLE_CATEGORIES.includes(child.category)
+    )
+    .sort((a, b) => b.sizeBytes - a.sizeBytes)
 }
 
 interface SizeRowProps {
   node: SizeNode
   t: Messages
+
+  expansionKey: string
   depth: number
   total: number
   mode: ThemeMode
@@ -264,6 +355,7 @@ const MAX_INLINE_CHILDREN = 200
 function SizeRow({
   node,
   t,
+  expansionKey,
   depth,
   total,
   mode,
@@ -272,10 +364,11 @@ function SizeRow({
   onDrillDown,
   onReveal
 }: SizeRowProps) {
-  const expandable = node.isDirectory && node.path !== ''
-  const open = expansion.isExpanded(node.path)
-  const loading = expansion.isLoading(node.path)
-  const raw = open ? expansion.childrenOf(node.path, node.children) : null
+  const label = node.aggregatedCount === null ? node.name : t.storage.smallerItems(node.aggregatedCount)
+  const expandable = node.isDirectory && (node.path !== '' || (node.children?.length ?? 0) > 0)
+  const open = expansion.isExpanded(expansionKey)
+  const loading = expansion.isLoading(expansionKey)
+  const raw = open ? expansion.childrenOf(expansionKey, node.children) : null
   const children = raw === null ? null : [...raw].sort(compare)
 
   return (
@@ -286,8 +379,8 @@ function SizeRow({
             {expandable ? (
               <IconButton
                 size="small"
-                aria-label={open ? t.common.collapse(node.name) : t.common.expand(node.name)}
-                onClick={() => expansion.toggle(node.path, node.children)}
+                aria-label={open ? t.common.collapse(label) : t.common.expand(label)}
+                onClick={() => expansion.toggle(expansionKey, node.children)}
                 sx={{ p: 0.25 }}
               >
                 {loading ? (
@@ -308,8 +401,11 @@ function SizeRow({
             ) : (
               <InsertDriveFileOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
             )}
-            <Typography variant="body2" sx={{ ml: 0.5 }}>
-              {node.name}
+            <Typography
+              variant="body2"
+              sx={{ ml: 0.5, color: node.aggregatedCount === null ? undefined : 'text.secondary' }}
+            >
+              {label}
             </Typography>
           </Stack>
         </TableCell>
@@ -340,7 +436,7 @@ function SizeRow({
         </TableCell>
         <TableCell>
           <Stack direction="row">
-            {node.isDirectory && node.children && node.children.length > 0 && depth === 0 && (
+            {node.isDirectory && node.path !== '' && node.children && node.children.length > 0 && depth === 0 && (
               <Tooltip title={t.storage.openAsOwnView}>
                 <IconButton size="small" onClick={() => onDrillDown(node)}>
                   <ChevronRightRounded fontSize="small" />
@@ -361,10 +457,11 @@ function SizeRow({
       {open &&
         children?.slice(0, MAX_INLINE_CHILDREN).map((child) => (
           <SizeRow
-            key={child.path || `${node.path}/${child.name}`}
+            key={child.path || `${expansionKey}/aggregate`}
 
             node={{ ...child, category: node.category }}
             t={t}
+            expansionKey={child.path || `${expansionKey}/#aggregate`}
             depth={depth + 1}
             total={total}
             mode={mode}

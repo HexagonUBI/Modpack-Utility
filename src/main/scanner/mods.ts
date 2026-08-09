@@ -1,4 +1,6 @@
+import { createReadStream } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import type {
   DependencyKind,
@@ -7,15 +9,29 @@ import type {
   ModDependency,
   ModFile,
   ModLoaderType,
+  ModSide,
+  ModSideInfo,
+  ModSideSource,
   ModsReport
 } from '@shared/types'
 import { IMPLICIT_MOD_IDS } from '@shared/modIds'
 import { withZip, ZipReader } from './zip'
 import { satisfies } from './versions'
 import { isDirectory, parseJsonLoose } from './fsutil'
+import { readModrinthFacts, type ModrinthFacts } from './modrinthSides'
 import { isTable, parseToml, tomlBoolean, tomlString, tomlTableArray, type TomlTable } from './toml'
 
 const JAR_CONCURRENCY = 16
+
+const CLIENT_ONLY: ModSideInfo = { client: 'required', server: 'unsupported', source: 'declared' }
+const SERVER_ONLY: ModSideInfo = { client: 'unsupported', server: 'required', source: 'declared' }
+const BOTH_BY_DEFAULT: ModSideInfo = { client: 'required', server: 'required', source: 'loaderDefault' }
+
+function sided(side: ModSide, source: ModSideSource): ModSideInfo {
+  if (side === 'client') return { client: 'required', server: 'unsupported', source }
+  if (side === 'server') return { client: 'unsupported', server: 'required', source }
+  return { client: 'required', server: 'required', source }
+}
 
 export type PhysicalSide = 'client' | 'server'
 
@@ -34,6 +50,7 @@ export async function readMods(modsDir: string, physicalSide: PhysicalSide = 'cl
 
   const files = await collectJarPaths(modsDir)
   const mods = await mapWithConcurrency(files, JAR_CONCURRENCY, readModFile)
+  await applyKnownFacts(mods)
 
   mods.sort((a, b) => (a.name ?? a.fileName).localeCompare(b.name ?? b.fileName))
   const provided = indexProvidedIds(mods)
@@ -51,6 +68,54 @@ export async function readMods(modsDir: string, physicalSide: PhysicalSide = 'cl
     totalBytes: mods.reduce((sum, mod) => sum + mod.sizeBytes, 0),
     disabledBytes: mods.filter((mod) => !mod.enabled).reduce((sum, mod) => sum + mod.sizeBytes, 0)
   }
+}
+
+async function applyKnownFacts(mods: ModFile[]): Promise<void> {
+  const known = await readModrinthFacts()
+  if (known.byFileName.size === 0 && known.bySha1.size === 0) return
+
+  const unresolved: ModFile[] = []
+
+  for (const mod of mods) {
+    const key = mod.fileName.toLowerCase().replace(/\.(disabled|bak)$/, '')
+    const facts = known.byFileName.get(key)
+    if (!facts) {
+      unresolved.push(mod)
+      continue
+    }
+    applyFacts(mod, facts)
+  }
+
+  const worthHashing = unresolved.filter(
+    (mod) => mod.side.source !== 'declared' && mod.sizeBytes <= MAX_HASHED_BYTES
+  )
+
+  await mapWithConcurrency(worthHashing, HASH_CONCURRENCY, async (mod) => {
+    const sha1 = await hashFile(mod.filePath)
+    if (!sha1) return
+    const facts = known.bySha1.get(sha1)
+    if (facts) applyFacts(mod, facts)
+  })
+}
+
+const MAX_HASHED_BYTES = 96 * 1024 * 1024
+const HASH_CONCURRENCY = 6
+
+function applyFacts(mod: ModFile, facts: ModrinthFacts): void {
+  if (mod.side.source !== 'declared') {
+    mod.side = { client: facts.client, server: facts.server, source: 'modrinth' }
+  }
+  if (facts.slug && !mod.provides.includes(facts.slug)) mod.slug = facts.slug
+}
+
+async function hashFile(path: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const hash = createHash('sha1')
+    const stream = createReadStream(path)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', () => resolve(null))
+  })
 }
 
 async function collectJarPaths(modsDir: string): Promise<string[]> {
@@ -109,9 +174,10 @@ async function readModFile(filePath: string): Promise<ModFile> {
     dependencies: [],
     provides: [],
     providedVersions: {},
+    slug: null,
     resourceNamespaces: [],
     bundledConfigNames: [],
-    environment: null,
+    side: BOTH_BY_DEFAULT,
     iconDataUrl: null,
     problems: { missing: [], disabledDependencies: [], conflictsWith: [] },
     parseError: null
@@ -135,7 +201,8 @@ async function readModFile(filePath: string): Promise<ModFile> {
           ...manifest,
           ...hints,
           provides: [...(manifest.provides ?? []), ...provided],
-          providedVersions
+          providedVersions,
+          side: widenForNested(await resolveSide(zip, manifest.side ?? null, manifest.loaderType), nested)
         }
       }
 
@@ -144,31 +211,40 @@ async function readModFile(filePath: string): Promise<ModFile> {
         return {
           ...primary,
           ...hints,
-          provides: provided.filter((id) => id !== primary.modId)
+          provides: provided.filter((id) => id !== primary.modId),
+          side: widenForNested(await resolveSide(zip, primary.side ?? null, primary.loaderType), nested)
         }
       }
 
-      return hints
+      return { ...hints, side: widenForNested(await resolveSide(zip, null, undefined), nested) }
     })
 
-    if (parsed.modId || parsed.name) return { ...base, ...parsed }
+    const side = parsed.side ?? base.side
+
+    if (parsed.modId || parsed.name) return { ...base, ...parsed, side }
     return {
       ...base,
       ...parsed,
+      side,
       name: prettyNameFromFileName(fileName),
-      parseError: 'No mod manifest found'
+      parseError: { kind: 'noManifest' }
     }
   } catch (error) {
     return {
       ...base,
       name: prettyNameFromFileName(fileName),
-      parseError: error instanceof Error ? error.message : String(error)
+      parseError: {
+        kind: 'unreadable',
+        detail: error instanceof Error ? error.message : String(error)
+      }
     }
   }
 }
 
-interface ParsedManifest extends Partial<ModFile> {
+interface ParsedManifest extends Omit<Partial<ModFile>, 'side'> {
   iconPath?: string | null
+
+  side?: ModSideInfo | null
 }
 
 const MOD_ICON_EXTENSION = /\.(png|jpe?g)$/i
@@ -248,6 +324,180 @@ async function readNestedManifests(zip: ZipReader): Promise<ParsedManifest[]> {
   return manifests
 }
 
+function widenForNested(side: ModSideInfo, nested: ParsedManifest[]): ModSideInfo {
+  if (side.server !== 'unsupported' || side.source === 'declared') return side
+
+  const bundled = nested.map((entry) => entry.side).filter((entry): entry is ModSideInfo => Boolean(entry))
+  if (bundled.some((entry) => entry.server !== 'unsupported')) {
+    return sided('both', 'entrypoints')
+  }
+  return side
+}
+
+async function resolveSide(
+  zip: ZipReader,
+  declared: ModSideInfo | null,
+  loaderType: ModLoaderType | undefined
+): Promise<ModSideInfo> {
+  if (declared) return declared
+
+  const fromMixins = await readMixinSide(zip)
+  if (fromMixins) return fromMixins
+
+  const fromContents = await sideFromContents(zip, loaderType)
+  if (fromContents) return fromContents
+
+  return BOTH_BY_DEFAULT
+}
+
+const MAX_MIXIN_CONFIGS = 8
+const MIXIN_CONFIG_NAME = /(^|\/)[\w.-]*mixins?\.json$/i
+
+async function readMixinSide(zip: ZipReader): Promise<ModSideInfo | null> {
+  const names = zip
+    .entries()
+    .filter((entry) => !entry.isDirectory && MIXIN_CONFIG_NAME.test(entry.fileName))
+    .slice(0, MAX_MIXIN_CONFIGS)
+    .map((entry) => entry.fileName)
+
+  if (names.length === 0) return null
+
+  let client = 0
+  let server = 0
+  let common = 0
+
+  for (const name of names) {
+    const text = await zip.readText(name).catch(() => null)
+    if (!text) continue
+
+    const json = parseJsonLoose<Record<string, unknown>>(text)
+    if (!json) continue
+
+    client += countMixins(json['client'])
+    server += countMixins(json['server'])
+    common += countMixins(json['mixins'])
+  }
+
+  if (common > 0) return sided('both', 'mixins')
+  return null
+}
+
+function countMixins(raw: unknown): number {
+  return Array.isArray(raw) ? raw.length : 0
+}
+
+const CLIENT_CLASS_MARKERS = [
+  'com/mojang/blaze3d/',
+  'net/minecraft/class_310',
+  'net/minecraft/client/'
+]
+
+const DEDICATED_SERVER_MARKERS = ['net/minecraft/server/dedicated/']
+
+const SERVER_CONTENT = /^data\/[^/]+\/(recipe|loot_table|worldgen|advancement|function|dimension|damage_type|enchantment)/
+
+const MIN_CLASSES_FOR_ABSENCE = 40
+
+interface JarEvidence {
+  scannedAny: boolean
+  classCount: number
+  client: boolean
+  dedicatedServer: boolean
+  serverContent: boolean
+}
+
+async function collectEvidence(zip: ZipReader, depth: number): Promise<JarEvidence> {
+  const evidence: JarEvidence = {
+    scannedAny: false,
+    classCount: 0,
+    client: false,
+    dedicatedServer: false,
+    serverContent: zip.entries().some((entry) => SERVER_CONTENT.test(entry.fileName))
+  }
+
+  const classes = zip.entries().filter((entry) => !entry.isDirectory && entry.fileName.endsWith('.class'))
+  evidence.classCount = classes.length
+  let scanned = 0
+
+  for (const entry of classes) {
+    if (evidence.client && evidence.dedicatedServer) break
+
+    let buffer: Buffer
+    try {
+      buffer = await zip.read(entry)
+    } catch {
+      continue
+    }
+
+    scanned++
+    evidence.scannedAny = true
+
+    if (!evidence.client && CLIENT_CLASS_MARKERS.some((marker) => buffer.includes(marker))) {
+      evidence.client = true
+    }
+    if (
+      !evidence.dedicatedServer &&
+      DEDICATED_SERVER_MARKERS.some((marker) => buffer.includes(marker))
+    ) {
+      evidence.dedicatedServer = true
+    }
+  }
+
+  if (depth >= 1) return evidence
+
+  const nested = zip
+    .entries()
+    .filter((entry) => !entry.isDirectory && NESTED_JAR_PATTERN.test(entry.fileName))
+    .slice(0, MAX_NESTED_JARS)
+
+  for (const entry of nested) {
+    if (evidence.client && evidence.serverContent) break
+    try {
+      const inner = await ZipReader.fromBuffer(await zip.read(entry))
+      try {
+        const nestedEvidence = await collectEvidence(inner, depth + 1)
+        evidence.scannedAny = evidence.scannedAny || nestedEvidence.scannedAny
+        evidence.classCount += nestedEvidence.classCount
+        evidence.client = evidence.client || nestedEvidence.client
+        evidence.dedicatedServer = evidence.dedicatedServer || nestedEvidence.dedicatedServer
+        evidence.serverContent = evidence.serverContent || nestedEvidence.serverContent
+      } finally {
+        inner.close()
+      }
+    } catch {
+    }
+  }
+
+  return evidence
+}
+
+const FORGE_LOADERS: ModLoaderType[] = ['forge', 'neoforge', 'legacy-forge']
+
+async function sideFromContents(
+  zip: ZipReader,
+  loaderType: ModLoaderType | undefined
+): Promise<ModSideInfo | null> {
+  const evidence = await collectEvidence(zip, 0)
+  if (!evidence.scannedAny) return null
+
+  if (!evidence.client) {
+    const proven =
+      evidence.serverContent ||
+      evidence.dedicatedServer ||
+      evidence.classCount >= MIN_CLASSES_FOR_ABSENCE
+    return proven ? sided('server', 'contents') : null
+  }
+
+  if (loaderType !== undefined && FORGE_LOADERS.includes(loaderType)) {
+    return BOTH_BY_DEFAULT
+  }
+
+  if (!evidence.serverContent && !evidence.dedicatedServer) {
+    return sided('client', 'contents')
+  }
+  return sided('both', 'contents')
+}
+
 const MAX_NAMESPACES = 24
 const CONFIG_LIKE_EXTENSION = /\.(toml|json5?|cfg|conf|properties|yaml|yml|snbt)$/i
 
@@ -303,7 +553,6 @@ function parseFabricManifest(text: string): ParsedManifest | null {
   const json = parseJsonLoose<Record<string, unknown>>(text)
   if (!json) return null
 
-  const environment = json['environment']
   return {
     loaderType: 'fabric',
     modId: asString(json['id']),
@@ -320,9 +569,43 @@ function parseFabricManifest(text: string): ParsedManifest | null {
     ],
     provides: asStringArray(json['provides']),
     iconPath: readFabricIconPath(json['icon']),
-    environment:
-      environment === 'client' ? 'client' : environment === 'server' ? 'server' : 'both'
+    side: readFabricSide(json)
   }
+}
+
+function readFabricSide(json: Record<string, unknown>): ModSideInfo | null {
+  const declared = json['environment']
+  if (declared === 'client') return CLIENT_ONLY
+  if (declared === 'server') return SERVER_ONLY
+
+  return sideFromEntrypoints(json['entrypoints'], {
+    client: ['client'],
+    server: ['server', 'dedicated_server'],
+    common: ['main', 'preLaunch', 'prelaunch']
+  })
+}
+
+function sideFromEntrypoints(
+  raw: unknown,
+  keys: { client: string[]; server: string[]; common: string[] }
+): ModSideInfo | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+
+  const counts = { client: 0, server: 0, common: 0 }
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const entries = Array.isArray(value) ? value.length : value ? 1 : 0
+    if (entries === 0) continue
+
+    const lower = key.toLowerCase()
+    if (keys.client.some((candidate) => candidate.toLowerCase() === lower)) counts.client += entries
+    else if (keys.server.some((candidate) => candidate.toLowerCase() === lower)) counts.server += entries
+    else counts.common += entries
+  }
+
+  if (counts.common > 0) return sided('both', 'entrypoints')
+  if (counts.client > 0 && counts.server === 0) return sided('client', 'entrypoints')
+  if (counts.server > 0 && counts.client === 0) return sided('server', 'entrypoints')
+  return null
 }
 
 function readFabricIconPath(raw: unknown): string | null {
@@ -365,8 +648,23 @@ function parseQuiltManifest(text: string): ParsedManifest | null {
     dependencies: readQuiltDependencies(valueAt(loader, 'depends')),
     provides: readQuiltProvides(valueAt(loader, 'provides')),
     iconPath: readFabricIconPath(valueAt(metadata, 'icon')),
-    environment: null
+    side: readQuiltSide(json, loader)
   }
+}
+
+function readQuiltSide(json: Record<string, unknown>, loader: unknown): ModSideInfo | null {
+  const raw = valueAt(json, 'minecraft.environment')
+  if (typeof raw === 'string') {
+    const value = raw.trim().toLowerCase()
+    if (value === 'client') return CLIENT_ONLY
+    if (value === 'dedicated_server' || value === 'server') return SERVER_ONLY
+  }
+
+  return sideFromEntrypoints(valueAt(loader, 'entrypoints'), {
+    client: ['client_init', 'client'],
+    server: ['server_init', 'server', 'dedicated_server'],
+    common: ['init', 'main', 'pre_launch']
+  })
 }
 
 function readQuiltContributors(raw: unknown): string[] {
@@ -436,8 +734,20 @@ async function parseForgeManifest(
       .map((entry) => tomlString(entry, 'modId'))
       .filter((entry): entry is string => Boolean(entry)),
     iconPath: tomlString(primary, 'logoFile') ?? tomlString(toml, 'logoFile'),
-    environment: null
+    side: readForgeModSide(toml, primary)
   }
+}
+
+function readForgeModSide(toml: TomlTable, primary: TomlTable): ModSideInfo | null {
+  if (tomlBoolean(primary, 'clientSideOnly') ?? tomlBoolean(toml, 'clientSideOnly')) return CLIENT_ONLY
+  if (tomlBoolean(primary, 'serverSideOnly') ?? tomlBoolean(toml, 'serverSideOnly')) return SERVER_ONLY
+
+  const side = (tomlString(primary, 'side') ?? tomlString(toml, 'side'))?.trim().toUpperCase()
+  if (side === 'CLIENT') return CLIENT_ONLY
+  if (side === 'SERVER' || side === 'DEDICATED_SERVER') return SERVER_ONLY
+  if (side === 'BOTH') return sided('both', 'declared')
+
+  return null
 }
 
 async function resolveForgeVersion(declared: string | null, zip: ZipReader): Promise<string | null> {
@@ -532,8 +842,7 @@ function parseLegacyManifest(text: string): ParsedManifest | null {
       side: null
     })),
     provides: [],
-    iconPath: asString(entry['logoFile']),
-    environment: null
+    iconPath: asString(entry['logoFile'])
   }
 }
 

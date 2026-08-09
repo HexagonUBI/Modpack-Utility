@@ -60,7 +60,8 @@ const api = {
   setPackEnabled: (gameDir: string, name: string, enabled: boolean): Promise<ContentResult> =>
     ipcRenderer.invoke('packs:setEnabled', { gameDir, name, enabled }),
 
-  trash: (paths: string[]): Promise<TrashResult[]> => ipcRenderer.invoke('files:trash', paths),
+  trash: (paths: string[], permanent: boolean): Promise<TrashResult[]> =>
+    ipcRenderer.invoke('files:trash', { paths, permanent }),
 
   openPath: (target: string): Promise<string> => ipcRenderer.invoke('shell:openPath', target),
 

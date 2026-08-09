@@ -15,17 +15,16 @@ const MAX_SETTINGS = 400
 
 export async function readConfigDocument(path: string): Promise<ConfigDocument> {
   const fileName = basename(path)
-  const format = formatOf(fileName)
 
   const base: ConfigDocument = {
     path,
     fileName,
-    format,
+    format: formatOf(fileName),
     settings: [],
     unsupportedReason: null
   }
 
-  if (format === 'unsupported') {
+  if (base.format === 'unsupported') {
     return { ...base, unsupportedReason: 'fileType' }
   }
 
@@ -34,6 +33,9 @@ export async function readConfigDocument(path: string): Promise<ConfigDocument> 
   if (text.length > MAX_CONFIG_BYTES) {
     return { ...base, unsupportedReason: 'tooLarge' }
   }
+
+  const format = formatOf(fileName, text)
+  base.format = format
 
   const settings =
     format === 'toml'
@@ -63,7 +65,10 @@ export async function writeConfigChanges(
   if (changes.length === 0) return { ok: true, error: null, detail: null, skipped: [] }
 
   try {
-    const format = formatOf(basename(path))
+    const text = await readTextFile(path)
+    if (text === null) return { ok: false, error: 'failed', detail: null, skipped: [] }
+
+    const format = formatOf(basename(path), text)
     if (format === 'json') return await writeJsonChanges(path, changes)
     if (format === 'unsupported') {
       return { ok: false, error: 'fileType', detail: null, skipped: [] }
@@ -80,15 +85,23 @@ export async function writeConfigChanges(
   }
 }
 
-function formatOf(fileName: string): ConfigFormat {
+const JSON_EXTENSION = /\.(json|json5|jsonc)$/i
+const LINE_EXTENSION = /\.(properties|cfg|txt|ini|conf|hocon|yaml|yml)$/i
+
+function formatOf(fileName: string, text?: string): ConfigFormat {
   const lower = fileName.toLowerCase()
   if (lower.endsWith('.toml')) return 'toml'
+  if (JSON_EXTENSION.test(lower)) return 'json'
 
-  if (lower.endsWith('.properties') || lower.endsWith('.cfg') || lower.endsWith('.txt')) {
-    return 'properties'
+  if (LINE_EXTENSION.test(lower)) {
+    return text !== undefined && looksLikeJson(text) ? 'json' : 'properties'
   }
-  if (lower.endsWith('.json')) return 'json'
   return 'unsupported'
+}
+
+function looksLikeJson(text: string): boolean {
+  const trimmed = text.replace(/^\uFEFF/, '').trimStart()
+  return trimmed.startsWith('{') || trimmed.startsWith('[')
 }
 
 const RANGE_BETWEEN = /Range:\s*(-?[\d.]+)\s*~\s*(-?[\d.]+)/i
@@ -314,6 +327,8 @@ function parseScalarOrList(raw: string): SettingValue {
       return parsed as string[]
     }
   }
+
+  if (raw.length >= 2 && raw.startsWith("'") && raw.endsWith("'")) return raw.slice(1, -1)
 
   return raw
 }

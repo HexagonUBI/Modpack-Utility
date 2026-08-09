@@ -49,7 +49,7 @@ interface InstanceDetailProps {
   onScanStorage: () => void
   onReveal: (path: string) => void
   onOpen: (path: string) => void
-  onPurge: (paths: string[]) => void
+  onPurge: (paths: string[], permanent: boolean) => void
   onConfigSaved: (message: string) => void
   onToggleMod: (path: string, enabled: boolean) => void
   onTogglePack: (name: string, enabled: boolean) => void
@@ -180,10 +180,12 @@ export default function InstanceDetail({
             report={storage}
             rootLabel={instance.name}
             loading={storageLoading}
+            busy={busy}
             progress={progress}
             mode={mode}
             onScan={onScanStorage}
             onReveal={onReveal}
+            onPurge={onPurge}
           />
         )}
 

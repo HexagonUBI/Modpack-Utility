@@ -6,11 +6,13 @@ import {
   LANGUAGES,
   type AccentName,
   type AppSettings,
+  type DeleteMode,
   type ThemePreference
 } from '@shared/types'
 
 const VALID_ACCENTS: AccentName[] = ['red', 'green', 'blue', 'violet', 'amber', 'slate']
 const VALID_THEMES: ThemePreference[] = ['system', 'light', 'dark']
+const VALID_DELETE_MODES: DeleteMode[] = ['recycle', 'ask']
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json')
@@ -42,6 +44,7 @@ function coerce(value: unknown): AppSettings {
   const theme = record['theme']
   const accent = record['accent']
   const language = record['language']
+  const deleteMode = record['deleteMode']
   const extraFolders = record['extraFolders']
 
   return {
@@ -54,6 +57,9 @@ function coerce(value: unknown): AppSettings {
     language: LANGUAGES.some((entry) => entry.code === language)
       ? (language as string)
       : DEFAULT_SETTINGS.language,
+    deleteMode: VALID_DELETE_MODES.includes(deleteMode as DeleteMode)
+      ? (deleteMode as DeleteMode)
+      : DEFAULT_SETTINGS.deleteMode,
     extraFolders: Array.isArray(extraFolders)
       ? extraFolders.filter((entry): entry is string => typeof entry === 'string')
       : []

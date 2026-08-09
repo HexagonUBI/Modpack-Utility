@@ -23,6 +23,8 @@ export const SURFACE = {
 
 const FONT_STACK = '"Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif'
 
+export const LOGO_FONT_STACK = '"Comfortaa Variable", Comfortaa, "Inter Variable", sans-serif'
+
 const RADIUS = 7
 
 export function buildTheme(mode: ThemeMode, accent: AccentName = 'red'): Theme {
