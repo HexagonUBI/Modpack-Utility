@@ -388,6 +388,8 @@ export interface AppSettings {
   deleteMode: DeleteMode
 
   extraFolders: string[]
+
+  autoCheckUpdates: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -395,7 +397,56 @@ export const DEFAULT_SETTINGS: AppSettings = {
   accent: 'red',
   language: 'en',
   deleteMode: 'recycle',
-  extraFolders: []
+  extraFolders: [],
+  autoCheckUpdates: true
+}
+
+export type UpdateErrorCode =
+  | 'offline'
+  | 'notPublished'
+  | 'rateLimited'
+  | 'noAsset'
+  | 'downloadFailed'
+  | 'verifyFailed'
+  | 'launchFailed'
+
+export type UpdateChannel = 'installer' | 'portable' | 'development'
+
+export interface ReleaseInfo {
+  version: string
+  tagName: string
+  title: string | null
+
+  notes: string
+  publishedIso: string | null
+  htmlUrl: string
+
+  downloadUrl: string | null
+  downloadSizeBytes: number | null
+}
+
+export interface UpdateStatus {
+  currentVersion: string
+
+  available: ReleaseInfo | null
+
+  checkedIso: string | null
+  error: UpdateErrorCode | null
+
+  channel: UpdateChannel
+}
+
+export type UpdateProgress =
+  | { phase: 'checking' }
+  | { phase: 'downloading'; receivedBytes: number; totalBytes: number }
+  | { phase: 'verifying' }
+  | { phase: 'restarting' }
+
+export interface UpdateInstallResult {
+  ok: boolean
+  error: UpdateErrorCode | null
+
+  detail: string | null
 }
 
 export interface InstanceSize {

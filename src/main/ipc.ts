@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
 import { rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, parse } from 'node:path'
 import type {
@@ -10,13 +10,17 @@ import type {
   InstanceAnalysis,
   InstanceSize,
   ModsReport,
+  ReleaseInfo,
   ResourcePackReport,
   ScanProgress,
   ScreenshotReport,
   SettingValue,
   SizeNode,
   StorageReport,
-  TrashResult
+  TrashResult,
+  UpdateInstallResult,
+  UpdateProgress,
+  UpdateStatus
 } from '@shared/types'
 import { scanKnownLaunchers, scanUserFolder } from './scanner/detect'
 import { readMods } from './scanner/mods'
@@ -30,6 +34,14 @@ import {
 } from './scanner/content'
 import { readConfigDocument, writeConfigChanges } from './scanner/configFile'
 import { readSettings, writeSettings } from './settings'
+import {
+  acknowledgeChangelog,
+  changelogFor,
+  checkForUpdate,
+  downloadAndInstall,
+  lastStatus,
+  pendingChangelog
+} from './updater'
 
 export const CHANNELS = {
   scanInstances: 'instances:scan',
@@ -50,7 +62,14 @@ export const CHANNELS = {
   trash: 'files:trash',
   openPath: 'shell:openPath',
   revealPath: 'shell:revealPath',
-  progress: 'scan:progress'
+  openExternal: 'shell:openExternal',
+  appVersion: 'app:version',
+  updateStatus: 'update:status',
+  updateInstall: 'update:install',
+  updateChangelog: 'update:changelog',
+  updateAcknowledge: 'update:acknowledge',
+  progress: 'scan:progress',
+  updateProgress: 'update:progress'
 } as const
 
 const THUMBNAIL_WIDTH = 320
@@ -284,6 +303,35 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.revealPath, async (_event, target: unknown): Promise<void> => {
     shell.showItemInFolder(requireAbsolutePath(target))
+  })
+
+  ipcMain.handle(CHANNELS.openExternal, async (_event, target: unknown): Promise<void> => {
+    if (typeof target !== 'string' || !target.startsWith('https://')) {
+      throw new Error('Expected an https link')
+    }
+    await shell.openExternal(target)
+  })
+
+  ipcMain.handle(CHANNELS.appVersion, async (): Promise<string> => app.getVersion())
+
+  ipcMain.handle(CHANNELS.updateStatus, async (_event, force: unknown): Promise<UpdateStatus> =>
+    force === true ? checkForUpdate() : lastStatus()
+  )
+
+  ipcMain.handle(CHANNELS.updateInstall, async (event): Promise<UpdateInstallResult> =>
+    downloadAndInstall((progress) => {
+      if (event.sender.isDestroyed()) return
+      event.sender.send(CHANNELS.updateProgress, progress satisfies UpdateProgress)
+    })
+  )
+
+  ipcMain.handle(CHANNELS.updateChangelog, async (_event, version: unknown): Promise<ReleaseInfo | null> =>
+    typeof version === 'string' && version.length > 0 ? changelogFor(version) : pendingChangelog()
+  )
+
+  ipcMain.handle(CHANNELS.updateAcknowledge, async (_event, version: unknown): Promise<void> => {
+    if (typeof version !== 'string' || version.length === 0) return
+    await acknowledgeChangelog(version)
   })
 }
 

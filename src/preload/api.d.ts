@@ -6,13 +6,17 @@ import type {
   Instance,
   InstanceAnalysis,
   InstanceSize,
+  ReleaseInfo,
   ResourcePackReport,
   ScanProgress,
   ScreenshotReport,
   SettingValue,
   SizeNode,
   StorageReport,
-  TrashResult
+  TrashResult,
+  UpdateInstallResult,
+  UpdateProgress,
+  UpdateStatus
 } from '@shared/types'
 
 export interface ModpackUtilityApi {
@@ -37,7 +41,14 @@ export interface ModpackUtilityApi {
   trash(paths: string[], permanent: boolean): Promise<TrashResult[]>
   openPath(target: string): Promise<string>
   revealPath(target: string): Promise<void>
+  openExternal(url: string): Promise<void>
+  appVersion(): Promise<string>
+  updateStatus(force: boolean): Promise<UpdateStatus>
+  installUpdate(): Promise<UpdateInstallResult>
+  changelog(version: string | null): Promise<ReleaseInfo | null>
+  acknowledgeChangelog(version: string): Promise<void>
   onProgress(listener: (progress: ScanProgress) => void): () => void
+  onUpdateProgress(listener: (progress: UpdateProgress) => void): () => void
 }
 
 declare global {

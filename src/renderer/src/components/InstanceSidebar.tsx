@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   CircularProgress,
@@ -24,6 +25,7 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import SettingsRounded from '@mui/icons-material/SettingsRounded'
 import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded'
+import SystemUpdateAltRounded from '@mui/icons-material/SystemUpdateAltRounded'
 import type { Instance, LauncherKind } from '@shared/types'
 import logoUrl from '../assets/logo.png'
 import { LOGO_FONT_STACK, type ThemeMode } from '../theme'
@@ -51,6 +53,9 @@ interface InstanceSidebarProps {
   onAddFolder: () => void
   onToggleMode: () => void
 
+  updateVersion: string | null
+  onShowUpdate: () => void
+
   measureProgress: number | null
 }
 
@@ -66,6 +71,8 @@ export default function InstanceSidebar({
   onRescan,
   onAddFolder,
   onToggleMode,
+  updateVersion,
+  onShowUpdate,
   measureProgress
 }: InstanceSidebarProps) {
   const t = useT()
@@ -97,6 +104,20 @@ export default function InstanceSidebar({
         >
           {t.appName}
         </Typography>
+        {updateVersion !== null && (
+          <Tooltip title={t.updates.availableTooltip(updateVersion)}>
+            <IconButton
+              size="small"
+              color="primary"
+              aria-label={t.updates.availableTooltip(updateVersion)}
+              onClick={onShowUpdate}
+            >
+              <Badge color="primary" variant="dot" overlap="circular">
+                <SystemUpdateAltRounded fontSize="small" />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title={mode === 'dark' ? t.nav.lightTheme : t.nav.darkTheme}>
           <IconButton
             size="small"

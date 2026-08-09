@@ -2,10 +2,13 @@ import type { ReactNode } from 'react'
 import {
   Box,
   Button,
+  CircularProgress,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Select,
   Stack,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -14,22 +17,33 @@ import {
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import CreateNewFolderRounded from '@mui/icons-material/CreateNewFolderRounded'
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded'
+import HistoryRounded from '@mui/icons-material/HistoryRounded'
+import RefreshRounded from '@mui/icons-material/RefreshRounded'
+import SystemUpdateAltRounded from '@mui/icons-material/SystemUpdateAltRounded'
 import {
   LANGUAGES,
   type AccentName,
   type AppSettings,
   type DeleteMode,
-  type ThemePreference
+  type ThemePreference,
+  type UpdateStatus
 } from '@shared/types'
+import { formatDate } from '../format'
 import { accentColour, type ThemeMode } from '../theme'
 import { useT } from '../i18n'
 
 interface SettingsPageProps {
   settings: AppSettings
   mode: ThemeMode
+  appVersion: string
+  updateStatus: UpdateStatus | null
+  checkingUpdate: boolean
   onChange: (patch: Partial<AppSettings>) => void
   onAddFolder: () => void
   onReveal: (path: string) => void
+  onCheckUpdates: () => void
+  onShowUpdate: () => void
+  onShowChangelog: () => void
 }
 
 const ACCENT_ORDER: AccentName[] = ['red', 'green', 'blue', 'violet', 'amber', 'slate']
@@ -37,11 +51,18 @@ const ACCENT_ORDER: AccentName[] = ['red', 'green', 'blue', 'violet', 'amber', '
 export default function SettingsPage({
   settings,
   mode,
+  appVersion,
+  updateStatus,
+  checkingUpdate,
   onChange,
   onAddFolder,
-  onReveal
+  onReveal,
+  onCheckUpdates,
+  onShowUpdate,
+  onShowChangelog
 }: SettingsPageProps) {
   const t = useT()
+  const available = updateStatus?.available ?? null
 
   return (
     <Box sx={{ height: '100%', overflowY: 'auto', px: 4, py: 3 }}>
@@ -177,6 +198,82 @@ export default function SettingsPage({
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {t.settings.deleteModeDetail}
             </Typography>
+          </Stack>
+        </Section>
+
+        <Section title={t.updates.title} detail={t.updates.detail}>
+          <Stack spacing={1.5}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {t.updates.installedVersion}
+              </Typography>
+              <Typography variant="body2" sx={{ fontFamily: 'ui-monospace, monospace' }}>
+                {appVersion}
+              </Typography>
+            </Stack>
+
+            <Typography
+              variant="body2"
+              sx={{ color: available ? 'primary.main' : 'text.secondary', fontWeight: available ? 600 : 400 }}
+            >
+              {checkingUpdate
+                ? t.updates.checking
+                : available
+                  ? t.updates.available(available.version)
+                  : updateStatus?.error
+                    ? t.updates.errors[updateStatus.error]
+                    : updateStatus?.checkedIso
+                      ? t.updates.upToDate
+                      : t.updates.neverChecked}
+            </Typography>
+
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+              <Button
+                size="small"
+                startIcon={
+                  checkingUpdate ? <CircularProgress size={14} /> : <RefreshRounded />
+                }
+                disabled={checkingUpdate}
+                onClick={onCheckUpdates}
+              >
+                {t.updates.checkNow}
+              </Button>
+              {available && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<SystemUpdateAltRounded />}
+                  onClick={onShowUpdate}
+                >
+                  {t.updates.dialogTitle(available.version)}
+                </Button>
+              )}
+              <Button size="small" startIcon={<HistoryRounded />} onClick={onShowChangelog}>
+                {t.updates.viewChangelog}
+              </Button>
+            </Stack>
+
+            {updateStatus?.checkedIso && !checkingUpdate && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {t.updates.lastChecked(formatDate(updateStatus.checkedIso, t))}
+              </Typography>
+            )}
+
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={settings.autoCheckUpdates}
+                    onChange={(event) => onChange({ autoCheckUpdates: event.target.checked })}
+                  />
+                }
+                label={<Typography variant="body2">{t.updates.autoCheck}</Typography>}
+              />
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                {t.updates.autoCheckDetail}
+              </Typography>
+            </Box>
           </Stack>
         </Section>
       </Stack>

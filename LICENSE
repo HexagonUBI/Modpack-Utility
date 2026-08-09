@@ -1,0 +1,65 @@
+Modpack Utility License
+
+Copyright (c) 2026 SimpleFox. All rights reserved.
+
+Modpack Utility is free to use, but it is not open source. The permissions below
+are the only ones granted. Every other right is reserved by the copyright holder.
+
+1. Using it
+
+   You may download, install and run Modpack Utility free of charge, for any
+   purpose, personal or commercial, on as many machines as you like, for as long
+   as you like.
+
+2. Reading the source
+
+   You may view and study the source code, and keep a copy of it for that
+   purpose.
+
+3. Contributing
+
+   You may modify the source code in order to prepare a contribution to the
+   official repository at https://github.com/HexagonUBI/Modpack-Utility, and you
+   may publish that modification there as a pull request, patch or attachment.
+   By submitting a contribution you agree that the copyright holder may use it
+   under this license and under any later license for this software.
+
+4. Everything else needs permission
+
+   Written permission from the copyright holder is required in order to:
+
+   - distribute the software or any part of it, modified or not, including
+     re-hosting the installer or bundling it with anything else;
+   - publish or share a modified version;
+   - reuse the source code, in whole or in part, in another project;
+   - sell the software or charge for access to it.
+
+   Linking to the official releases page copies nothing and needs no permission.
+
+   Permission is given by asking.
+
+5. Third-party components
+
+   Modpack Utility is built on Electron, Chromium, Node.js, React, MUI and other
+   components, each under its own license. Those licenses govern those
+   components, not this one, and their notices ship with the installed
+   application.
+
+6. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+   IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. If these terms are broken
+
+   The permissions above end automatically. They come back if the copyright
+   holder says so in writing.
+
+Note about GitHub: hosting the source on GitHub lets other GitHub users fork the
+repository within GitHub, under GitHub's Terms of Service. That is how the
+platform works and this license does not change it. Publishing a modified build,
+or taking the code elsewhere, still needs permission under section 4.

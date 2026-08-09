@@ -46,6 +46,7 @@ function coerce(value: unknown): AppSettings {
   const language = record['language']
   const deleteMode = record['deleteMode']
   const extraFolders = record['extraFolders']
+  const autoCheckUpdates = record['autoCheckUpdates']
 
   return {
     theme: VALID_THEMES.includes(theme as ThemePreference)
@@ -62,6 +63,8 @@ function coerce(value: unknown): AppSettings {
       : DEFAULT_SETTINGS.deleteMode,
     extraFolders: Array.isArray(extraFolders)
       ? extraFolders.filter((entry): entry is string => typeof entry === 'string')
-      : []
+      : [],
+    autoCheckUpdates:
+      typeof autoCheckUpdates === 'boolean' ? autoCheckUpdates : DEFAULT_SETTINGS.autoCheckUpdates
   }
 }

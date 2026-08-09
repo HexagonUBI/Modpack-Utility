@@ -7,10 +7,14 @@ import {
   type Instance,
   type InstanceAnalysis,
   type InstanceSize,
+  type ReleaseInfo,
   type ResourcePackReport,
   type ScanProgress,
   type ScreenshotReport,
-  type StorageReport
+  type StorageReport,
+  type UpdateErrorCode,
+  type UpdateProgress,
+  type UpdateStatus
 } from '@shared/types'
 import { buildTheme, type ThemeMode } from './theme'
 import { I18nContext, messagesFor, type Messages } from './i18n'
@@ -19,6 +23,7 @@ import { formatCount } from './format'
 import { useAsyncData } from './hooks'
 import InstanceSidebar from './components/InstanceSidebar'
 import InstanceDetail from './components/InstanceDetail'
+import UpdateDialog, { type UpdateDialogMode } from './components/UpdateDialog'
 import HomePage from './pages/HomePage'
 import SettingsPage from './pages/SettingsPage'
 
@@ -60,6 +65,14 @@ export default function App() {
 
   const [storageById, setStorageById] = useState<Record<string, StorageReport>>({})
   const [storageLoadingId, setStorageLoadingId] = useState<string | null>(null)
+
+  const [appVersion, setAppVersion] = useState('')
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null)
+  const [updateError, setUpdateError] = useState<UpdateErrorCode | null>(null)
+  const [dialogMode, setDialogMode] = useState<UpdateDialogMode | null>(null)
+  const [changelog, setChangelog] = useState<ReleaseInfo | null>(null)
 
   const selected = instances.find((instance) => instance.id === selectedId) ?? null
 
@@ -108,9 +121,33 @@ export default function App() {
     []
   )
 
-  useEffect(() => {
-    void window.api.getSettings().then(setSettings)
+  const checkUpdates = useCallback(async (force: boolean) => {
+    setCheckingUpdate(true)
+    try {
+      setUpdateStatus(await window.api.updateStatus(force))
+    } catch {
+      setUpdateStatus(null)
+    } finally {
+      setCheckingUpdate(false)
+    }
   }, [])
+
+  useEffect(() => {
+    void window.api.appVersion().then(setAppVersion)
+
+    void window.api.getSettings().then((saved) => {
+      setSettings(saved)
+      void checkUpdates(saved.autoCheckUpdates)
+    })
+
+    void window.api.changelog(null).then((release) => {
+      if (release === null) return
+      setChangelog(release)
+      setDialogMode('changelog')
+    })
+  }, [checkUpdates])
+
+  useEffect(() => window.api.onUpdateProgress(setUpdateProgress), [])
 
   useEffect(() => {
     const query = window.matchMedia?.('(prefers-color-scheme: light)')
@@ -303,6 +340,41 @@ export default function App() {
     setView('instance')
   }, [])
 
+  const showChangelog = useCallback(async () => {
+    const release = changelog ?? (appVersion === '' ? null : await window.api.changelog(appVersion))
+    if (release === null) {
+      notify((t) => t.updates.noChangelog)
+      return
+    }
+    setChangelog(release)
+    setDialogMode('changelog')
+  }, [appVersion, changelog, notify])
+
+  const closeUpdateDialog = useCallback(() => {
+    if (dialogMode === 'changelog') {
+      const version = appVersion === '' ? (changelog?.version ?? '') : appVersion
+      if (version !== '') void window.api.acknowledgeChangelog(version)
+    }
+    setDialogMode(null)
+    setUpdateError(null)
+  }, [appVersion, changelog, dialogMode])
+
+  const installUpdate = useCallback(async () => {
+    setUpdateError(null)
+    setUpdateProgress({ phase: 'checking' })
+    try {
+      const result = await window.api.installUpdate()
+      if (result.ok) return
+      setUpdateProgress(null)
+      setUpdateError(result.error)
+    } catch {
+      setUpdateProgress(null)
+      setUpdateError('downloadFailed')
+    }
+  }, [])
+
+  const dialogRelease = dialogMode === 'changelog' ? changelog : (updateStatus?.available ?? null)
+
   return (
     <I18nContext.Provider value={messages}>
     <DeleteModeContext.Provider value={settings.deleteMode}>
@@ -323,6 +395,8 @@ export default function App() {
           onToggleMode={() =>
             void updateSettings({ theme: mode === 'dark' ? 'light' : 'dark' })
           }
+          updateVersion={updateStatus?.available?.version ?? null}
+          onShowUpdate={() => setDialogMode('update')}
           measureProgress={measuringAll ? measureFraction : null}
         />
 
@@ -331,9 +405,15 @@ export default function App() {
             <SettingsPage
               settings={settings}
               mode={mode}
+              appVersion={appVersion}
+              updateStatus={updateStatus}
+              checkingUpdate={checkingUpdate}
               onChange={(patch) => void updateSettings(patch)}
               onAddFolder={() => void addFolder()}
               onReveal={reveal}
+              onCheckUpdates={() => void checkUpdates(true)}
+              onShowUpdate={() => setDialogMode('update')}
+              onShowChangelog={() => void showChangelog()}
             />
           )}
 
@@ -376,6 +456,17 @@ export default function App() {
           )}
         </Box>
       </Box>
+
+      <UpdateDialog
+        open={dialogMode !== null}
+        mode={dialogMode ?? 'update'}
+        release={dialogRelease}
+        channel={updateStatus?.channel ?? 'installer'}
+        progress={updateProgress}
+        error={updateError}
+        onInstall={() => void installUpdate()}
+        onClose={closeUpdateDialog}
+      />
 
       <Snackbar
         open={notice !== null}

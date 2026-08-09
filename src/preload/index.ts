@@ -7,13 +7,17 @@ import type {
   Instance,
   InstanceAnalysis,
   InstanceSize,
+  ReleaseInfo,
   ResourcePackReport,
   ScanProgress,
   ScreenshotReport,
   SettingValue,
   SizeNode,
   StorageReport,
-  TrashResult
+  TrashResult,
+  UpdateInstallResult,
+  UpdateProgress,
+  UpdateStatus
 } from '@shared/types'
 
 const api = {
@@ -67,11 +71,33 @@ const api = {
 
   revealPath: (target: string): Promise<void> => ipcRenderer.invoke('shell:revealPath', target),
 
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
+
+  appVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
+
+  updateStatus: (force: boolean): Promise<UpdateStatus> => ipcRenderer.invoke('update:status', force),
+
+  installUpdate: (): Promise<UpdateInstallResult> => ipcRenderer.invoke('update:install'),
+
+  changelog: (version: string | null): Promise<ReleaseInfo | null> =>
+    ipcRenderer.invoke('update:changelog', version),
+
+  acknowledgeChangelog: (version: string): Promise<void> =>
+    ipcRenderer.invoke('update:acknowledge', version),
+
   onProgress: (listener: (progress: ScanProgress) => void): (() => void) => {
     const handler = (_event: unknown, progress: ScanProgress): void => listener(progress)
     ipcRenderer.on('scan:progress', handler)
     return () => {
       ipcRenderer.removeListener('scan:progress', handler)
+    }
+  },
+
+  onUpdateProgress: (listener: (progress: UpdateProgress) => void): (() => void) => {
+    const handler = (_event: unknown, progress: UpdateProgress): void => listener(progress)
+    ipcRenderer.on('update:progress', handler)
+    return () => {
+      ipcRenderer.removeListener('update:progress', handler)
     }
   }
 }

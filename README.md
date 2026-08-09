@@ -1,122 +1,105 @@
 # Modpack Utility
 
-Finds every Minecraft instance on your machine, then tells you what is actually
-inside them - which mod owns which config, what is left over from mods you
-removed, and where the disk space went.
+Every Minecraft instance on your PC in one window: what is inside it, what is
+broken, and what is safe to delete.
 
-Built for the moment a modpack stops behaving and you need to know *why*, without
-opening six folders and guessing.
+No account, no setup, nothing to configure. Open it and your instances are
+already there.
 
-## What it does
+## Download
 
-**Finds instances by looking at them, not by guessing paths.** Prism Launcher,
-MultiMC, CurseForge, Modrinth, ATLauncher, GDLauncher, the FTB app, Technic, the
-vanilla launcher, and plain dedicated servers. Detection reads what is actually in
-a folder (`mmc-pack.json`, `minecraftinstance.json`, a `mods/` directory, ...), so
-portable installs and instances on a second drive work the same as default ones.
-Anything it misses, you can add by hand - the same detection runs on it.
+Grab the latest version from the
+[releases page](https://github.com/HexagonUBI/Modpack-Utility/releases/latest).
 
-Where a launcher keeps no per-instance manifest - the current Modrinth app stores
-everything in a database - the game's own log is read for the version and loader
-it was last launched with.
+- **`Modpack-Utility-<version>-Setup.exe`** - the normal one. Installs for you
+  only, so Windows never asks for an administrator password, and adds a Start
+  menu and desktop shortcut.
+- **`Modpack-Utility-<version>-Portable.exe`** - a single file you can run from
+  anywhere, including a USB stick. Nothing gets installed.
 
-**Maps configs to mods.** Every entry in `config/` is scored against the mods you
-have installed, by mod id, display name, jar filename, and initials (so
-`etf_warnings.json` finds Entity Texture Features). Each match shows how confident
-it is and why. The useful output is the inverse: config matching *nothing*
-installed, which is almost always residue from a mod you removed, with a size
-attached so you know whether it is worth clearing.
+Windows 10 or 11. The first time you run it, Windows may show a blue "Windows
+protected your PC" box (SmartScreen), because the app is not signed with a paid certificate.
+Click **More info**, then **Run anyway**.
 
-Configs belonging to a *disabled* mod are called out separately - those hold your
-settings and are worth keeping.
+The installed version keeps itself up to date. When there is a new release you
+get an update icon next to the logo, and one click downloads and installs it.
+After it restarts, you get the list of what changed.
 
-**Reads mod metadata properly.** Fabric, Quilt, Forge, NeoForge and legacy
-(pre-1.13) manifests, including jars bundled inside other jars. Two details do
-most of the work here, and both were found by running the scanner against 50-odd
-real instances:
+## What it is for
 
-- Fabric API ships as one jar containing about 40 nested modules, and NeoForge
-  libraries such as KotlinForForge are a bare container whose only real content
-  is a nested jar. Without reading inside them, healthy instances report dozens
-  of missing dependencies.
-- NeoForge 21 replaced the old `mandatory` boolean with `type = "required" |
-  "optional" | ...`, and a modern pack declares dozens of optional compatibility
-  hooks. Anything still reading only `mandatory` will call a working pack
-  critically broken.
+You have twelve instances across three launchers. One of them crashes, one takes
+40 GB and you do not know why, and half of them have config files left over from
+mods you deleted a year ago.
 
-**Opens on an overview.** Total instances, launchers and versions at a glance,
-plus a ring showing which instances are actually eating the disk, with the same
-figures listed beside it. Click any slice to jump straight to that instance.
+This tells you which is which, without opening six folders and guessing.
 
-**Draws the dependency graph, two ways.** The whole instance as one pannable,
-zoomable map, with mods stacked by how deep their dependency chain runs so
-libraries settle at the bottom and the things pulling them in sit above.
-Unrelated groups become separate clusters side by side, and mods that depend on
-nothing are packed into a block underneath rather than stretching the map to a
-width nothing can read. Hovering a mod dims everything it is not connected to.
-There is also a focused view: one mod in the middle, what it needs on one side
-and what needs it on the other.
+## What you can do with it
 
-Optional dependencies that are not installed are hidden by default, behind a
-toggle, because a modern pack declares dozens of them and drawing every one makes
-the graph look like it is describing some other instance.
+**See every instance in one list.** Prism, MultiMC, CurseForge, Modrinth,
+ATLauncher, GDLauncher, the FTB app, Technic, the vanilla launcher, and plain
+servers. It finds them by looking inside folders rather than checking a list of
+default paths, so portable installs and instances on a second drive show up too.
+Anything it misses, you can add by hand.
 
-**Checks version ranges before crying wolf.** Most `breaks` declarations name a
-range of *old* versions. Distant Horizons declares old Iris incompatible; Sable
-declares old Sodium incompatible. Ignoring the range turns a healthy pack into
-five red warnings, so ranges are parsed (both Maven and npm styles) and a
-conflict is only raised when the installed version genuinely falls inside one.
+**Find out why a pack is broken.** Mods that are missing a dependency, that need
+something you switched off, or that genuinely clash with another mod are marked
+in red, with the reason in plain words.
 
-**Cleans up in bulk.** Select configs by preset (no matching mod, from disabled
-mods, uncertain matches, backup files), review exactly what was picked, and move
-the lot to the recycle bin. The same applies to unused resource packs and to old
-or oversized screenshots. Nothing is ever hard-deleted, because attribution is a
-heuristic and you must be able to undo it.
+**See what needs what.** The whole pack drawn as a map you can pan and zoom,
+with libraries at the bottom and the mods pulling them in above. Hover a mod and
+everything unrelated fades out. Or pick one mod and see only what it needs and
+what needs it.
 
-**Shows where the space went,** WizTree-style: a treemap plus a table whose
-folders open in place, so you can see which of five worlds is the 1 GB one
-without leaving the page. Config folders expand the same way.
+**Find the leftovers.** Every file in `config/` gets matched to the mod that owns
+it. The useful part is the ones that match nothing: settings left behind by mods
+you removed. They are listed with their size, so you can see whether clearing
+them is worth it. Configs belonging to a mod you only *disabled* are listed
+separately, because those are worth keeping.
 
-While anything is being measured, the line underneath says which folder it is on,
-written relative to the instance. Nothing above the instance folder is ever put
-on screen.
+**See where the space went.** A treemap plus a table you can open folder by
+folder, so you can find which of your five worlds is the 1 GB one without leaving
+the app. Logs, crash reports, caches and Distant Horizons detail get their own
+one-click clean-up, since the game rebuilds all of it anyway.
 
-**Covers resource packs and screenshots** as first-class views: which packs are
-actually loaded and in what order, which are just sitting there, and a thumbnail
-grid of screenshots with sizes and dates.
+**Change settings without hunting for files.** Config files open as real
+controls: sliders for numbers, dropdowns for choices, switches for on and off.
+Saving changes only the line you edited and leaves every comment and blank line
+exactly where it was.
 
-**Edits configs with real controls.** A bounded number becomes a slider, a
-documented set becomes a dropdown, a flag becomes a switch. Forge and NeoForge
-write the range and permitted values as comments above each key, so those are
-read and used; `options.txt`, `.properties`, `.cfg` and JSON fall back to the
-shape of the value itself, with known Minecraft ranges filled in.
+**Turn things on and off.** Mods switch off the same way every launcher does it,
+by renaming to `.disabled`. Resource packs write into the game's own list, so a
+pack you switch on here is switched on next time you play.
 
-Saving is surgical. It rewrites exactly the value on exactly the line it came
-from, after re-reading the file to confirm the key is still there. Comments,
-ordering and formatting survive untouched. `npm run check:config` proves this on
-copies of your real files: same line count, same comment count, exactly one line
-changed.
+**Tidy up in bulk.** Pick leftover configs, unused resource packs or old
+screenshots by preset, look at exactly what got selected, and clear them in one
+go. Everything goes to the recycle bin, so you can always put it back.
 
-**Turns things on and off.** Mods toggle by renaming to and from `.disabled`,
-the same convention every launcher uses. Resource packs write straight into the
-game's own `resourcePacks` list in `options.txt`, so a pack switched on here is
-switched on in game.
+**In your language.** As of 2026.8.10, the app supports English, Ukrainian & Russian.
+With more translations to come!
 
-**Says which mod is broken.** A mod with a missing dependency, a disabled
-dependency, or a live incompatibility is named in red in the mod list and
-outlined in red on the dependency map, with the reason in its tooltip.
 
-**Settings that stick.** Theme (follow system, light or dark), one of six muted
-accent colours, a language picker, and extra folders to scan. Folders added with
-the Add folder button are remembered, so a portable launcher install is added
-once rather than after every restart. Everything lives in `settings.json` in the
-per-user data directory.
+## Is it safe?
 
-**Points out the performance problems it can see** - unmet dependencies, memory
-allocated far above or below what the pack needs, garbage-collector flags that no
-longer exist in modern Java, and whether any performance mods are installed at all.
+**Deleting goes to the recycle bin.** Always, by default. Matching a config to a
+mod is educated guesswork, so anything it removes has to be undoable. If you
+would rather have the choice each time, Settings has an "Always ask" mode that
+adds a permanent delete option to the confirmation.
 
-## Running it
+**It only touches what you tell it to.** Reading and measuring never changes
+anything. Files change only when you switch a mod off, save a config, or confirm
+a clean-up.
+
+**Nothing leaves your computer.** No account, no telemetry, no uploads. The one
+and only thing it sends is a check to GitHub for a new version, which you can
+switch off in Settings.
+
+---
+
+# For the curious
+
+Everything below is the technical half. Skip it happily.
+
+## Running from source
 
 ```bash
 npm install
@@ -126,65 +109,93 @@ npm install
 npm run dev
 ```
 
-## Building a release
-
-Produces both a Windows installer and a standalone executable in `release/`:
+Building the Windows installer and portable exe into `release/`:
 
 ```bash
 npm run dist
 ```
 
-- `Modpack-Utility-<version>-Setup.exe` installs per-user (no administrator
-  prompt), lets you pick the install directory, and adds Start menu and desktop
-  shortcuts.
-- `Modpack-Utility-<version>-Portable.exe` is a single self-contained file that
-  runs without installing anything.
-
-Neither is code-signed, so Windows SmartScreen will show a "Windows protected
-your PC" warning the first time. Choose "More info" then "Run anyway". Signing
-needs a paid certificate; set `CSC_LINK` and `CSC_KEY_PASSWORD` if you have one.
-
-To rebuild just the unpacked application directory, without installers:
-
-```bash
-npm run package
-```
-
-The app icon is generated rather than checked in as a design file:
-
-```bash
-npm run icon
-```
-
-There is also a headless scanner, useful when adding support for a launcher:
+There is also a headless scanner, which is the fastest way to check a detection
+change against real instances:
 
 ```bash
 npm run scan
 ```
 
-Point it at one folder instead of the known launcher roots:
-
 ```bash
 npm run scan -- "D:\Games\SomeInstance"
 ```
 
-## How it is put together
+## Things that turned out to matter
 
-Electron, with all filesystem work in the main process and the renderer talking to
-it only through a narrow preload bridge. React and MUI for the interface.
+**Detection reads folders, not paths.** An instance is recognised by what is in
+it (`mmc-pack.json`, `minecraftinstance.json`, a `mods/` directory and so on),
+which is why portable installs work. Where a launcher keeps no per-instance
+manifest, and the current Modrinth app keeps everything in a database instead,
+the game's own log gives up the version and loader it last launched with.
+
+**Nested jars are not optional.** Fabric API ships as one jar holding about 40
+modules, and NeoForge libraries such as KotlinForForge are a bare container whose
+only real content is a jar inside it. Without reading inside them, perfectly
+healthy instances report dozens of missing dependencies.
+
+**Dependency kind is not a boolean.** NeoForge 21 replaced `mandatory = true`
+with `type = "required" | "optional" | ...`, and a modern pack declares dozens of
+optional compatibility hooks. Reading only `mandatory` makes every working pack
+look critically broken.
+
+**Version ranges decide conflicts.** Most `breaks` declarations name a range of
+*old* versions: Distant Horizons breaks old Iris, Sable breaks old Sodium. Ignore
+the range and a healthy 94-mod pack sprouts five red warnings, so both Maven
+(`[47,)`) and npm-style (`>=0.5`) ranges are parsed, and a conflict is raised only
+when the installed version really falls inside one.
+
+**Client or server is ranked by evidence.** An explicit declaration in the
+manifest first, then the Modrinth metadata the launcher already cached, then
+loader entrypoints, then mixins, and only then the class files. Forge and
+NeoForge jars cannot be classified by their contents at all, because they compile
+against the whole game and guard client code with an annotation rather than by
+leaving it out, so they stay at "both" unless something authoritative says
+otherwise. Being wrong towards "both" costs a download; being wrong the other way
+makes someone strip a mod their server needed.
+
+**Config writing is surgical.** A save re-reads the file, confirms the key is
+still on the line it was found on, and rewrites that one value. `npm run
+check:config` proves it against copies of real files: same line count, same
+comment count, exactly one line different.
+
+**The ZIP and TOML readers are hand-written.** Jars get opened by the hundred and
+only two or three small entries are ever needed from each, so the reader seeks
+straight to them instead of decompressing the archive. And a strict TOML parser is
+the wrong tool for `mods.toml`, which is written by thousands of different authors
+and often is not valid TOML: a parser that gives up on the first violation reports
+"unknown mod" for a jar whose id is sitting perfectly readable on line 6.
+
+**Updates go through the GitHub releases API.** The check runs in the main
+process, the download is verified against the `latest.yml` that electron-builder
+publishes beside the installer, and the release notes are parsed into components
+rather than injected as HTML. The portable build links to the release page
+instead, because a running exe cannot overwrite itself on Windows.
+
+## Layout
+
+Electron, with every filesystem call in the main process and the interface
+reaching it only through a narrow preload bridge. React and MUI on top.
 
 ```
 src/
   main/
     index.ts            window, security policy, lifecycle
     ipc.ts              the whole renderer-facing surface
+    updater.ts          GitHub releases check, download, changelog
     scanner/
       launchers.ts      where each launcher keeps instances by default
       detect.ts         content-based instance detection
-      mods.ts           jar manifest parsing, nested jars, dependency checks
+      mods.ts           jar manifests, nested jars, dependency checks
       configs.ts        config-to-mod attribution and scoring
+      configFile.ts     surgical reads and writes
       sizes.ts          sized directory tree
-      zip.ts            random-access ZIP reader (no dependency)
+      zip.ts            random-access ZIP reader, no dependency
       toml.ts           forgiving TOML reader for mods.toml
       fsutil.ts         filesystem helpers that answer "no" instead of throwing
   preload/              contextBridge API
@@ -192,28 +203,18 @@ src/
   shared/types.ts       types crossing the IPC boundary
 ```
 
-Two deliberate choices worth knowing about:
-
-**The ZIP and TOML readers are hand-written rather than pulled from npm.** Mod jars
-are opened by the hundred and only two or three small entries are ever needed from
-each, so the reader seeks to those instead of decompressing archives. And a strict
-TOML parser is the wrong tool for `mods.toml`, which is written by thousands of
-different authors and frequently is not valid TOML - a parser that gives up on the
-first violation would report "unknown mod" for a jar whose id sits perfectly
-readable on line 6.
-
-**Nothing is deleted.** The app reports and opens folders; removing files is left to
-you, deliberately, because config attribution is a heuristic and no heuristic
-should be wired to a delete button.
-
 ## Colour
 
 The storage views use a categorical palette validated for colour-vision
 deficiency and for contrast against both the light and dark surfaces. Categories
-are assigned a fixed colour slot - never one based on size rank - so filtering or
-re-sorting never repaints anything. Treemap tiles carry direct labels and the same
-data is available as a table, so nothing depends on colour alone.
+get a fixed colour slot, never one based on size rank, so filtering or re-sorting
+never repaints anything. Treemap tiles carry direct labels and the same figures
+are available as a table, so nothing depends on colour alone.
 
 ## Licence
 
-MIT
+Free to use, personally or commercially, on as many machines as you like. It is
+not open source: modifying it, sharing a changed version, re-hosting the
+installer or reusing the code elsewhere all need permission first, which you get
+by opening an issue. Pull requests to this repository are welcome and need no
+permission. Full terms in [LICENSE](LICENSE).

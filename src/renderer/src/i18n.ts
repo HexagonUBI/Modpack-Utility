@@ -7,7 +7,8 @@ import type {
   ConfigWriteError,
   LauncherKind,
   LoaderKind,
-  ModLoaderType
+  ModLoaderType,
+  UpdateErrorCode
 } from '@shared/types'
 import type { VizGroup } from './viz'
 
@@ -146,6 +147,37 @@ export interface Messages {
     recycleBinOnly: string
     alwaysAsk: string
     deleteModeDetail: string
+  }
+  updates: {
+    title: string
+    detail: string
+    installedVersion: string
+    checkNow: string
+    checking: string
+    upToDate: string
+    lastChecked: (when: string) => string
+    neverChecked: string
+    autoCheck: string
+    autoCheckDetail: string
+    available: (version: string) => string
+    availableTooltip: (version: string) => string
+    dialogTitle: (version: string) => string
+    released: (when: string) => string
+    downloadSize: (size: string) => string
+    install: string
+    later: string
+    downloading: (percent: string) => string
+    verifying: string
+    restarting: string
+    installHint: string
+    openRelease: string
+    portableHint: string
+    devHint: string
+    changelogTitle: (version: string) => string
+    viewChangelog: string
+    noNotes: string
+    noChangelog: string
+    errors: Record<UpdateErrorCode, string>
   }
   deleteChoice: {
     title: (count: number) => string
@@ -632,6 +664,48 @@ const en: Messages = {
     alwaysAsk: 'Always ask',
     deleteModeDetail:
       'Recycle bin only sends everything to the recycle bin without asking. Always ask lets you choose the recycle bin or a permanent delete each time.'
+  },
+  updates: {
+    title: 'Updates',
+    detail: 'Releases are read from the GitHub repository this app is built from.',
+    installedVersion: 'Installed version',
+    checkNow: 'Check now',
+    checking: 'Checking...',
+    upToDate: 'This is the newest release.',
+    lastChecked: (when) => `Last checked ${when.toLowerCase()}`,
+    neverChecked: 'Not checked yet',
+    autoCheck: 'Check when the app starts',
+    autoCheckDetail:
+      'One request to the GitHub releases API on launch. Nothing is downloaded until you ask for it.',
+    available: (version) => `Version ${version} is available`,
+    availableTooltip: (version) => `Update to ${version}`,
+    dialogTitle: (version) => `Update to ${version}`,
+    released: (when) => `Released ${when.toLowerCase()}`,
+    downloadSize: (size) => `${size} download`,
+    install: 'Download and install',
+    later: 'Later',
+    downloading: (percent) => `Downloading... ${percent}`,
+    verifying: 'Checking the download...',
+    restarting: 'Starting the installer...',
+    installHint:
+      'The app closes while the installer runs and reopens on the new version. Your settings and scanned folders are kept.',
+    openRelease: 'Open the release page',
+    portableHint:
+      'This is the portable build, so it cannot replace itself. Download the new portable file from the release page.',
+    devHint: 'Running from source, so installing an update is disabled.',
+    changelogTitle: (version) => `What is new in ${version}`,
+    viewChangelog: 'View changelog',
+    noNotes: 'This release came with no notes.',
+    noChangelog: 'No changelog is available for this version.',
+    errors: {
+      offline: 'Could not reach GitHub. Check your connection and try again.',
+      notPublished: 'No release has been published yet.',
+      rateLimited: 'GitHub is rate limiting this machine. Try again in a few minutes.',
+      noAsset: 'That release has no installer attached to it.',
+      downloadFailed: 'The download did not finish.',
+      verifyFailed: 'The downloaded file did not match the release. Nothing was installed.',
+      launchFailed: 'The installer could not be started.'
+    }
   },
   deleteChoice: {
     title: (count) => `How should ${count} ${count === 1 ? 'item' : 'items'} be removed?`,
@@ -1183,6 +1257,48 @@ const ru: Messages = {
     alwaysAsk: 'Всегда спрашивать',
     deleteModeDetail:
       'В режиме «Только в корзину» всё отправляется в корзину без вопросов. В режиме «Всегда спрашивать» каждый раз можно выбрать корзину или безвозвратное удаление.'
+  },
+  updates: {
+    title: 'Обновления',
+    detail: 'Релизы читаются из репозитория GitHub, из которого собрано это приложение.',
+    installedVersion: 'Установленная версия',
+    checkNow: 'Проверить',
+    checking: 'Проверка...',
+    upToDate: 'Это самый свежий релиз.',
+    lastChecked: (when) => `Последняя проверка: ${when.toLowerCase()}`,
+    neverChecked: 'Проверок ещё не было',
+    autoCheck: 'Проверять при запуске',
+    autoCheckDetail:
+      'Один запрос к API релизов GitHub при запуске. Ничего не скачивается, пока вы сами это не запросите.',
+    available: (version) => `Доступна версия ${version}`,
+    availableTooltip: (version) => `Обновить до ${version}`,
+    dialogTitle: (version) => `Обновление до ${version}`,
+    released: (when) => `Выпущено: ${when.toLowerCase()}`,
+    downloadSize: (size) => `загрузка ${size}`,
+    install: 'Скачать и установить',
+    later: 'Позже',
+    downloading: (percent) => `Загрузка... ${percent}`,
+    verifying: 'Проверка загруженного файла...',
+    restarting: 'Запуск установщика...',
+    installHint:
+      'Приложение закроется на время установки и откроется уже на новой версии. Настройки и добавленные папки сохранятся.',
+    openRelease: 'Открыть страницу релиза',
+    portableHint:
+      'Это портативная сборка, она не может заменить сама себя. Скачайте новый портативный файл со страницы релиза.',
+    devHint: 'Приложение запущено из исходников, установка обновления отключена.',
+    changelogTitle: (version) => `Что нового в ${version}`,
+    viewChangelog: 'Список изменений',
+    noNotes: 'К этому релизу не приложено описание.',
+    noChangelog: 'Для этой версии список изменений недоступен.',
+    errors: {
+      offline: 'Не удалось связаться с GitHub. Проверьте подключение и попробуйте снова.',
+      notPublished: 'Ни одного релиза ещё не опубликовано.',
+      rateLimited: 'GitHub временно ограничил запросы с этого компьютера. Попробуйте через несколько минут.',
+      noAsset: 'К этому релизу не приложен установщик.',
+      downloadFailed: 'Загрузка не завершилась.',
+      verifyFailed: 'Скачанный файл не совпал с релизом. Ничего не установлено.',
+      launchFailed: 'Не удалось запустить установщик.'
+    }
   },
   deleteChoice: {
     title: (count) =>
@@ -1745,6 +1861,48 @@ const uk: Messages = {
     alwaysAsk: 'Завжди запитувати',
     deleteModeDetail:
       'У режимі «Лише до кошика» все потрапляє до кошика без запитань. У режимі «Завжди запитувати» щоразу можна вибрати кошик або остаточне видалення.'
+  },
+  updates: {
+    title: 'Оновлення',
+    detail: 'Релізи читаються з репозиторію GitHub, з якого зібрано цю програму.',
+    installedVersion: 'Встановлена версія',
+    checkNow: 'Перевірити',
+    checking: 'Перевірка...',
+    upToDate: 'Це найновіший реліз.',
+    lastChecked: (when) => `Остання перевірка: ${when.toLowerCase()}`,
+    neverChecked: 'Перевірок ще не було',
+    autoCheck: 'Перевіряти під час запуску',
+    autoCheckDetail:
+      'Один запит до API релізів GitHub під час запуску. Нічого не завантажується, доки ви самі це не попросите.',
+    available: (version) => `Доступна версія ${version}`,
+    availableTooltip: (version) => `Оновити до ${version}`,
+    dialogTitle: (version) => `Оновлення до ${version}`,
+    released: (when) => `Випущено: ${when.toLowerCase()}`,
+    downloadSize: (size) => `завантаження ${size}`,
+    install: 'Завантажити та встановити',
+    later: 'Пізніше',
+    downloading: (percent) => `Завантаження... ${percent}`,
+    verifying: 'Перевірка завантаженого файлу...',
+    restarting: 'Запуск інсталятора...',
+    installHint:
+      'Програма закриється на час встановлення і відкриється вже на новій версії. Налаштування та додані теки збережуться.',
+    openRelease: 'Відкрити сторінку релізу',
+    portableHint:
+      'Це портативна збірка, вона не може замінити саму себе. Завантажте новий портативний файл зі сторінки релізу.',
+    devHint: 'Програму запущено з вихідного коду, тож встановлення оновлення вимкнено.',
+    changelogTitle: (version) => `Що нового у ${version}`,
+    viewChangelog: 'Список змін',
+    noNotes: 'До цього релізу не додано опису.',
+    noChangelog: 'Для цієї версії список змін недоступний.',
+    errors: {
+      offline: 'Не вдалося зв\'язатися з GitHub. Перевірте підключення та спробуйте ще раз.',
+      notPublished: 'Жодного релізу ще не опубліковано.',
+      rateLimited: 'GitHub тимчасово обмежив запити з цього комп\'ютера. Спробуйте за кілька хвилин.',
+      noAsset: 'До цього релізу не додано інсталятора.',
+      downloadFailed: 'Завантаження не завершилося.',
+      verifyFailed: 'Завантажений файл не збігся з релізом. Нічого не встановлено.',
+      launchFailed: 'Не вдалося запустити інсталятор.'
+    }
   },
   deleteChoice: {
     title: (count) =>

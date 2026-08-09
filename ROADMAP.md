@@ -49,6 +49,24 @@ reasons and error messages. What is still missing:
 - Per-instance overrides, so a single instance can be pinned to a different
   scan behaviour.
 
+## Updates
+
+The app checks the GitHub releases API on launch, shows a badge next to the logo
+when a newer release exists, downloads the installer with a progress bar, verifies
+it against `latest.yml` and restarts into the new version. The changelog for the
+version that was just installed opens on the first launch after an update and can
+be reopened from Settings. Still missing:
+
+- The repository has to be public. A private repository answers the releases API
+  with 404, which the app reports as "no release published yet".
+- No prerelease channel. `releases/latest` skips prereleases, so a beta opt-in
+  would need a separate setting and a different endpoint.
+- The download is a full installer every time. Delta updates would need
+  electron-updater and its block map.
+- The portable build points at the release page instead of updating itself.
+- The release notes renderer covers the markdown GitHub actually emits. Tables and
+  images are not drawn.
+
 ## Instance work
 
 - Compare two instances and show what differs.
