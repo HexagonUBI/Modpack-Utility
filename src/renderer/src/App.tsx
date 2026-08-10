@@ -11,6 +11,7 @@ import {
   type ResourcePackReport,
   type ScanProgress,
   type ScreenshotReport,
+  type ShaderPackReport,
   type StorageReport,
   type UpdateErrorCode,
   type UpdateProgress,
@@ -31,6 +32,7 @@ type View = 'home' | 'instance' | 'settings'
 
 interface InstanceContent {
   packs: ResourcePackReport
+  shaders: ShaderPackReport
   screenshots: ScreenshotReport
 }
 
@@ -92,11 +94,12 @@ export default function App() {
 
   const loadContent = useCallback(async (raw: string): Promise<InstanceContent> => {
     const { gameDir } = JSON.parse(raw) as RequestKey
-    const [packs, screenshots] = await Promise.all([
+    const [packs, shaders, screenshots] = await Promise.all([
       window.api.resourcePacks(gameDir),
+      window.api.shaderPacks(gameDir),
       window.api.screenshots(gameDir)
     ])
-    return { packs, screenshots }
+    return { packs, shaders, screenshots }
   }, [])
 
   const analysis = useAsyncData(requestKey, loadAnalysis)
@@ -452,6 +455,7 @@ export default function App() {
               }}
               onToggleMod={toggleMod}
               onTogglePack={togglePack}
+              onNotify={notify}
             />
           )}
         </Box>

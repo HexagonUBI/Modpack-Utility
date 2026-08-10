@@ -22,18 +22,8 @@ Exporting would have multiple options where you can choose in which launchers yo
 You can also choose which folders/files specifically are to be exported (server archive takes only specific ones by default which you can edit as well, but if any of them are checked out on normal export it will prompt you if you want them gone from server too). These are all cached/saved so when you're exporting next time they are still chosen like you did before (with a button to quickly reset that selection)
 If there are any new files appearing after latest export, it will highlight them as green (folder will have green circle next to it if there are new files inside of it), files that got removed since last export will still show up, but wont be interactable and just be highlighted with red (that one is hidden by default, can unhide them with a checkmark filter)
 
-- Feature to export used resources in instance:
-Mods list with this formatting
-
-Mods:
-mod-icon | mod-name(hyperlink) | version | authors
-ResourcePacks:
-[same thing]
-ShaderPacks:
-[same thing]
-
 - Feature to have a snapshot (automatically creates up to 5 snapshots which you can look through (only creates new one when something changes))
-You can "Pin" the snapshot with info you'd like, and then next snapshot will always base off it and show changes between the two.
+You can "Pin" the snapshot with info you'd like (instance specific), and then next snapshot will always base off it and show changes between the two.
 Those snapshots will let you generate a changelog in multiple ways: HTML, Plain Text, Markdown and in .md/.txt
 
 
@@ -66,6 +56,22 @@ be reopened from Settings. Still missing:
 - The portable build points at the release page instead of updating itself.
 - The release notes renderer covers the markdown GitHub actually emits. Tables and
   images are not drawn.
+
+## Exporting the resource list
+
+The Export list button in the instance header writes mods, resource packs and
+shader packs as icon, name, version and authors, in a web page, a markdown table
+or aligned plain text, either copied to the clipboard or saved to a file. Names
+link to the Modrinth page where the launcher cache knows the slug, and to the
+manifest homepage otherwise. Still missing:
+
+- Resource packs and shader packs have no version or author to report. Nothing in
+  a `pack.mcmeta` or a shader zip carries either, and splitting them out of the
+  file name mangles names often enough that it was not worth it.
+- No icons in the markdown output, because GitHub and Discord both strip embedded
+  images. A mode that uploads them somewhere is the only way around that.
+- Worlds, datapacks and the config list are not exportable.
+- The whole thing is one instance at a time.
 
 ## Instance work
 

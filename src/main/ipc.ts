@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
-import { rm } from 'node:fs/promises'
-import { dirname, isAbsolute, join, parse } from 'node:path'
+import { rm, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, isAbsolute, join, parse } from 'node:path'
 import type {
   AppSettings,
   ConfigDocument,
@@ -12,9 +12,11 @@ import type {
   ModsReport,
   ReleaseInfo,
   ResourcePackReport,
+  SaveTextResult,
   ScanProgress,
   ScreenshotReport,
   SettingValue,
+  ShaderPackReport,
   SizeNode,
   StorageReport,
   TrashResult,
@@ -29,6 +31,7 @@ import { analyseStorage, listDirectoryWithSizes, measureDirectory } from './scan
 import {
   readResourcePacks,
   readScreenshots,
+  readShaderPacks,
   setModEnabled,
   setResourcePackEnabled
 } from './scanner/content'
@@ -57,9 +60,11 @@ export const CHANNELS = {
   setModEnabled: 'mods:setEnabled',
   setPackEnabled: 'packs:setEnabled',
   resourcePacks: 'instance:resourcePacks',
+  shaderPacks: 'instance:shaderPacks',
   screenshots: 'instance:screenshots',
   thumbnails: 'instance:thumbnails',
   trash: 'files:trash',
+  saveText: 'files:saveText',
   openPath: 'shell:openPath',
   revealPath: 'shell:revealPath',
   openExternal: 'shell:openExternal',
@@ -239,6 +244,10 @@ export function registerIpcHandlers(): void {
     return readResourcePacks(requireAbsolutePath(gameDir))
   })
 
+  ipcMain.handle(CHANNELS.shaderPacks, async (_event, gameDir: unknown): Promise<ShaderPackReport> => {
+    return readShaderPacks(requireAbsolutePath(gameDir))
+  })
+
   ipcMain.handle(CHANNELS.screenshots, async (_event, gameDir: unknown): Promise<ScreenshotReport> => {
     return readScreenshots(requireAbsolutePath(gameDir))
   })
@@ -295,6 +304,34 @@ export function registerIpcHandlers(): void {
       }
     }
     return results
+  })
+
+  ipcMain.handle(CHANNELS.saveText, async (event, request: unknown): Promise<SaveTextResult> => {
+    if (typeof request !== 'object' || request === null) throw new Error('Expected a save request')
+    const record = request as Record<string, unknown>
+
+    const text = record['text']
+    if (typeof text !== 'string') throw new Error('Expected text to save')
+
+    const fileName = basename(String(record['fileName'] ?? 'export.txt')).replace(/[<>:"|?*]/g, '_')
+    const extension = extname(fileName).replace('.', '') || 'txt'
+    const filterName = typeof record['filterName'] === 'string' ? record['filterName'] : extension
+
+    const options: Electron.SaveDialogOptions = {
+      title: typeof record['title'] === 'string' ? record['title'] : '',
+      defaultPath: join(app.getPath('documents'), fileName),
+      filters: [{ name: filterName, extensions: [extension] }]
+    }
+
+    const window = BrowserWindow.fromWebContents(event.sender)
+    const result = window
+      ? await dialog.showSaveDialog(window, options)
+      : await dialog.showSaveDialog(options)
+
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true, path: null }
+
+    await writeFile(result.filePath, text, 'utf8')
+    return { ok: true, canceled: false, path: result.filePath }
   })
 
   ipcMain.handle(CHANNELS.openPath, async (_event, target: unknown): Promise<string> => {

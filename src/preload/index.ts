@@ -9,9 +9,11 @@ import type {
   InstanceSize,
   ReleaseInfo,
   ResourcePackReport,
+  SaveTextResult,
   ScanProgress,
   ScreenshotReport,
   SettingValue,
+  ShaderPackReport,
   SizeNode,
   StorageReport,
   TrashResult,
@@ -52,6 +54,9 @@ const api = {
   resourcePacks: (gameDir: string): Promise<ResourcePackReport> =>
     ipcRenderer.invoke('instance:resourcePacks', gameDir),
 
+  shaderPacks: (gameDir: string): Promise<ShaderPackReport> =>
+    ipcRenderer.invoke('instance:shaderPacks', gameDir),
+
   screenshots: (gameDir: string): Promise<ScreenshotReport> =>
     ipcRenderer.invoke('instance:screenshots', gameDir),
 
@@ -66,6 +71,13 @@ const api = {
 
   trash: (paths: string[], permanent: boolean): Promise<TrashResult[]> =>
     ipcRenderer.invoke('files:trash', { paths, permanent }),
+
+  saveText: (request: {
+    text: string
+    fileName: string
+    title: string
+    filterName: string
+  }): Promise<SaveTextResult> => ipcRenderer.invoke('files:saveText', request),
 
   openPath: (target: string): Promise<string> => ipcRenderer.invoke('shell:openPath', target),
 

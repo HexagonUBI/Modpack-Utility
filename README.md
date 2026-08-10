@@ -74,6 +74,11 @@ pack you switch on here is switched on next time you play.
 screenshots by preset, look at exactly what got selected, and clear them in one
 go. Everything goes to the recycle bin, so you can always put it back.
 
+**Share what you are running.** Export list turns the instance into a tidy list
+of mods, resource packs and shader packs with icons, versions and authors, and
+each mod name links to its page. Save it as a web page, a markdown table for
+Discord or GitHub, or plain text, or just copy it to the clipboard.
+
 **In your language.** As of 2026.8.10, the app supports English, Ukrainian & Russian.
 With more translations to come!
 

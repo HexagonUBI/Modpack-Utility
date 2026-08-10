@@ -11,6 +11,7 @@ import type {
   UpdateErrorCode
 } from '@shared/types'
 import type { VizGroup } from './viz'
+import type { ExportFormat } from './export'
 
 export type Locale = 'en' | 'ru' | 'uk'
 
@@ -178,6 +179,24 @@ export interface Messages {
     noNotes: string
     noChangelog: string
     errors: Record<UpdateErrorCode, string>
+  }
+  export: {
+    button: string
+    title: string
+    detail: string
+    shaderPacks: string
+    includeDisabled: string
+    formats: Record<ExportFormat, string>
+    formatHint: Record<ExportFormat, string>
+    nothingSelected: string
+    copy: string
+    save: string
+    saveTitle: string
+    generatedOn: (date: string) => string
+    copied: string
+    copyFailed: string
+    saved: string
+    saveFailed: string
   }
   deleteChoice: {
     title: (count: number) => string
@@ -706,6 +725,34 @@ const en: Messages = {
       verifyFailed: 'The downloaded file did not match the release. Nothing was installed.',
       launchFailed: 'The installer could not be started.'
     }
+  },
+  export: {
+    button: 'Export list',
+    title: 'Export list',
+    detail:
+      'What this instance uses, with icons, versions and authors. Names link to the mod page wherever one is known.',
+    shaderPacks: 'Shader packs',
+    includeDisabled: 'Include things that are switched off',
+    formats: {
+      html: 'Web page',
+      markdown: 'Markdown',
+      text: 'Plain text'
+    },
+    formatHint: {
+      html: 'Opens in a browser, keeps the icons and prints cleanly.',
+      markdown:
+        'A table to paste into GitHub, Discord or a document. No icons, because most sites strip embedded images.',
+      text: 'Aligned columns and nothing else. No icons, no links.'
+    },
+    nothingSelected: 'Nothing to export. Pick at least one section.',
+    copy: 'Copy',
+    save: 'Save as file',
+    saveTitle: 'Save the exported list',
+    generatedOn: (date) => `Exported from Modpack Utility on ${date}`,
+    copied: 'Copied to the clipboard.',
+    copyFailed: 'Could not copy to the clipboard.',
+    saved: 'List saved.',
+    saveFailed: 'Could not save that file.'
   },
   deleteChoice: {
     title: (count) => `How should ${count} ${count === 1 ? 'item' : 'items'} be removed?`,
@@ -1299,6 +1346,34 @@ const ru: Messages = {
       verifyFailed: 'Скачанный файл не совпал с релизом. Ничего не установлено.',
       launchFailed: 'Не удалось запустить установщик.'
     }
+  },
+  export: {
+    button: 'Экспорт списка',
+    title: 'Экспорт списка',
+    detail:
+      'То, что использует эта сборка, со значками, версиями и авторами. Названия ведут на страницу мода, если она известна.',
+    shaderPacks: 'Шейдерпаки',
+    includeDisabled: 'Включить отключённое',
+    formats: {
+      html: 'Веб-страница',
+      markdown: 'Markdown',
+      text: 'Обычный текст'
+    },
+    formatHint: {
+      html: 'Открывается в браузере, сохраняет значки и аккуратно печатается.',
+      markdown:
+        'Таблица, которую можно вставить в GitHub, Discord или документ. Без значков: большинство сайтов вырезают встроенные изображения.',
+      text: 'Ровные столбцы и ничего лишнего. Без значков и ссылок.'
+    },
+    nothingSelected: 'Нечего экспортировать. Выберите хотя бы один раздел.',
+    copy: 'Копировать',
+    save: 'Сохранить в файл',
+    saveTitle: 'Сохранить список',
+    generatedOn: (date) => `Экспортировано из Modpack Utility ${date}`,
+    copied: 'Скопировано в буфер обмена.',
+    copyFailed: 'Не удалось скопировать в буфер обмена.',
+    saved: 'Список сохранён.',
+    saveFailed: 'Не удалось сохранить файл.'
   },
   deleteChoice: {
     title: (count) =>
@@ -1903,6 +1978,34 @@ const uk: Messages = {
       verifyFailed: 'Завантажений файл не збігся з релізом. Нічого не встановлено.',
       launchFailed: 'Не вдалося запустити інсталятор.'
     }
+  },
+  export: {
+    button: 'Експорт списку',
+    title: 'Експорт списку',
+    detail:
+      'Те, що використовує ця збірка, зі значками, версіями та авторами. Назви ведуть на сторінку мода, якщо вона відома.',
+    shaderPacks: 'Шейдерпаки',
+    includeDisabled: 'Включити вимкнене',
+    formats: {
+      html: 'Веб-сторінка',
+      markdown: 'Markdown',
+      text: 'Звичайний текст'
+    },
+    formatHint: {
+      html: 'Відкривається у браузері, зберігає значки і охайно друкується.',
+      markdown:
+        'Таблиця, яку можна вставити у GitHub, Discord або документ. Без значків: більшість сайтів вирізають вбудовані зображення.',
+      text: 'Рівні стовпці і нічого зайвого. Без значків і посилань.'
+    },
+    nothingSelected: 'Нема чого експортувати. Виберіть хоча б один розділ.',
+    copy: 'Копіювати',
+    save: 'Зберегти у файл',
+    saveTitle: 'Зберегти список',
+    generatedOn: (date) => `Експортовано з Modpack Utility ${date}`,
+    copied: 'Скопійовано до буфера обміну.',
+    copyFailed: 'Не вдалося скопіювати до буфера обміну.',
+    saved: 'Список збережено.',
+    saveFailed: 'Не вдалося зберегти файл.'
   },
   deleteChoice: {
     title: (count) =>

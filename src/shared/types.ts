@@ -275,6 +275,22 @@ export interface ResourcePackReport {
   enabledBytes: number
 }
 
+export interface ShaderPackEntry {
+  path: string
+  name: string
+  isDirectory: boolean
+  sizeBytes: number
+
+  enabled: boolean
+}
+
+export interface ShaderPackReport {
+  dir: string
+  exists: boolean
+  packs: ShaderPackEntry[]
+  totalBytes: number
+}
+
 export interface ScreenshotEntry {
   path: string
   name: string
@@ -293,6 +309,13 @@ export interface TrashResult {
   path: string
   ok: boolean
   error: string | null
+}
+
+export interface SaveTextResult {
+  ok: boolean
+
+  canceled: boolean
+  path: string | null
 }
 
 export type ScanProgress =

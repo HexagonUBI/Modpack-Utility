@@ -5,7 +5,9 @@ import type {
   ResourcePackEntry,
   ResourcePackReport,
   ScreenshotEntry,
-  ScreenshotReport
+  ScreenshotReport,
+  ShaderPackEntry,
+  ShaderPackReport
 } from '@shared/types'
 import { isDirectory, isFile, parseJsonLoose, readTextFile } from './fsutil'
 import { measureDirectory } from './sizes'
@@ -151,6 +153,69 @@ async function readIconFile(path: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+export async function readShaderPacks(gameDir: string): Promise<ShaderPackReport> {
+  const dir = join(gameDir, 'shaderpacks')
+
+  if (!(await isDirectory(dir))) {
+    return { dir, exists: false, packs: [], totalBytes: 0 }
+  }
+
+  const active = await readSelectedShader(gameDir)
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])
+  const packs: ShaderPackEntry[] = []
+
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) continue
+    if (entry.name.startsWith('.')) continue
+
+    const isDir = entry.isDirectory()
+    if (!isDir && !entry.name.toLowerCase().endsWith('.zip')) continue
+
+    const path = join(dir, entry.name)
+    if (isDir && !(await isDirectory(join(path, 'shaders')))) continue
+
+    const measured = await measureDirectory(path)
+
+    packs.push({
+      path,
+      name: entry.name,
+      isDirectory: isDir,
+      sizeBytes: measured.sizeBytes,
+      enabled: active !== null && active === entry.name.toLowerCase()
+    })
+  }
+
+  packs.sort((a, b) => {
+    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
+
+  return {
+    dir,
+    exists: true,
+    packs,
+    totalBytes: packs.reduce((sum, pack) => sum + pack.sizeBytes, 0)
+  }
+}
+
+async function readSelectedShader(gameDir: string): Promise<string | null> {
+  const sources = [
+    join(gameDir, 'config', 'iris.properties'),
+    join(gameDir, 'optionsshaders.txt')
+  ]
+
+  for (const source of sources) {
+    const text = await readTextFile(source)
+    if (text === null) continue
+
+    const value = /^shaderPack=(.*)$/m.exec(text)?.[1]?.trim()
+    if (!value || value.toLowerCase() === '(internal)' || value.toLowerCase() === 'off') continue
+
+    return value.replace(/\\(.)/g, '$1').toLowerCase()
+  }
+  return null
 }
 
 export async function setModEnabled(path: string, enabled: boolean): Promise<ContentResult> {

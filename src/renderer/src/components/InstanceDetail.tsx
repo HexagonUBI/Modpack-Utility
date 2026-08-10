@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
   Divider,
@@ -11,14 +12,17 @@ import {
   Tabs,
   Typography
 } from '@mui/material'
+import IosShareRounded from '@mui/icons-material/IosShareRounded'
 import type {
   Instance,
   InstanceAnalysis,
   ResourcePackReport,
   ScreenshotReport,
+  ShaderPackReport,
   StorageReport
 } from '@shared/types'
 import type { ThemeMode } from '../theme'
+import ExportDialog from './ExportDialog'
 import OverviewTab from '../tabs/OverviewTab'
 import ModsTab from '../tabs/ModsTab'
 import DependenciesTab from '../tabs/DependenciesTab'
@@ -26,12 +30,13 @@ import ConfigsTab from '../tabs/ConfigsTab'
 import StorageTab from '../tabs/StorageTab'
 import ResourcePacksTab from '../tabs/ResourcePacksTab'
 import ScreenshotsTab from '../tabs/ScreenshotsTab'
-import { useT } from '../i18n'
+import { useT, type Messages } from '../i18n'
 
 type TabKey = 'overview' | 'mods' | 'dependencies' | 'configs' | 'storage' | 'packs' | 'screenshots'
 
 interface InstanceContent {
   packs: ResourcePackReport
+  shaders: ShaderPackReport
   screenshots: ScreenshotReport
 }
 
@@ -53,6 +58,7 @@ interface InstanceDetailProps {
   onConfigSaved: (message: string) => void
   onToggleMod: (path: string, enabled: boolean) => void
   onTogglePack: (name: string, enabled: boolean) => void
+  onNotify: (pick: (t: Messages) => string) => void
 }
 
 export default function InstanceDetail({
@@ -72,10 +78,12 @@ export default function InstanceDetail({
   onPurge,
   onConfigSaved,
   onToggleMod,
-  onTogglePack
+  onTogglePack,
+  onNotify
 }: InstanceDetailProps) {
   const t = useT()
   const [tab, setTab] = useState<TabKey>('overview')
+  const [exporting, setExporting] = useState(false)
 
   const [revealMod, setRevealMod] = useState<string | null>(null)
 
@@ -98,6 +106,15 @@ export default function InstanceDetail({
             <Chip size="small" variant="outlined" label={instance.minecraftVersion} />
           )}
           {instance.isServer && <Chip size="small" variant="outlined" label={t.common.server} />}
+          <Box sx={{ flex: 1 }} />
+          <Button
+            size="small"
+            startIcon={<IosShareRounded />}
+            onClick={() => setExporting(true)}
+            disabled={analysis === null}
+          >
+            {t.export.button}
+          </Button>
         </Stack>
 
         <Tabs
@@ -215,6 +232,16 @@ export default function InstanceDetail({
             <Loading label={t.loading.screenshots} />
           ))}
       </Box>
+
+      <ExportDialog
+        open={exporting}
+        instance={instance}
+        mods={analysis?.mods ?? null}
+        packs={content?.packs ?? null}
+        shaders={content?.shaders ?? null}
+        onClose={() => setExporting(false)}
+        onDone={onNotify}
+      />
     </Stack>
   )
 }

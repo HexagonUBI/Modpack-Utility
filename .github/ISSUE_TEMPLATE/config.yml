@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: What is already planned
+    url: https://github.com/HexagonUBI/Modpack-Utility/blob/main/ROADMAP.md
+    about: The roadmap lists what is known to be wanted but not built yet. Worth a look before opening a feature request.
+  - name: Latest release
+    url: https://github.com/HexagonUBI/Modpack-Utility/releases/latest
+    about: Download the newest version. A lot of reports turn out to be fixed already.
+  - name: Permission to modify or redistribute
+    url: https://github.com/HexagonUBI/Modpack-Utility/blob/main/LICENSE
+    about: The app is free to use but not open source. Read the licence, then open an issue to ask.

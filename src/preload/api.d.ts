@@ -8,9 +8,11 @@ import type {
   InstanceSize,
   ReleaseInfo,
   ResourcePackReport,
+  SaveTextResult,
   ScanProgress,
   ScreenshotReport,
   SettingValue,
+  ShaderPackReport,
   SizeNode,
   StorageReport,
   TrashResult,
@@ -34,11 +36,18 @@ export interface ModpackUtilityApi {
   analyseInstance(gameDir: string, isServer: boolean): Promise<InstanceAnalysis>
   analyseStorage(rootPath: string): Promise<StorageReport>
   resourcePacks(gameDir: string): Promise<ResourcePackReport>
+  shaderPacks(gameDir: string): Promise<ShaderPackReport>
   screenshots(gameDir: string): Promise<ScreenshotReport>
   thumbnails(paths: string[]): Promise<Record<string, string>>
   setModEnabled(path: string, enabled: boolean): Promise<ContentResult>
   setPackEnabled(gameDir: string, name: string, enabled: boolean): Promise<ContentResult>
   trash(paths: string[], permanent: boolean): Promise<TrashResult[]>
+  saveText(request: {
+    text: string
+    fileName: string
+    title: string
+    filterName: string
+  }): Promise<SaveTextResult>
   openPath(target: string): Promise<string>
   revealPath(target: string): Promise<void>
   openExternal(url: string): Promise<void>

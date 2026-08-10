@@ -1,0 +1,80 @@
+name: Feature request
+description: Suggest something the app should be able to do
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good ideas are welcome.
+
+        Have a look at [ROADMAP.md](https://github.com/HexagonUBI/Modpack-Utility/blob/main/ROADMAP.md)
+        first: quite a lot is already planned, and adding a comment to something
+        that is on the list is more useful than a second issue for it.
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before suggesting
+      options:
+        - label: I searched the existing issues and this has not been suggested
+          required: true
+        - label: I checked the roadmap and this is not already on it
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What part of the app?
+      description: Pick everything that applies.
+      multiple: true
+      options:
+        - Finding instances
+        - Overview
+        - Mods
+        - Dependencies
+        - Configs
+        - Storage
+        - Resource packs and shaders
+        - Screenshots
+        - Settings
+        - Updates and changelog
+        - Export and import
+        - Worlds
+        - Something new entirely
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to be able to do?
+      description: Describe it as the thing you want to achieve, not only the button you want added.
+      placeholder: I want to see which mods two instances have in common before I merge them.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you do it today?
+      description: What the current workaround is, or why there is none. This is usually the most useful part.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: weight
+    attributes:
+      label: How much would this matter to you?
+      options:
+        - Nice to have
+        - I would use it regularly
+        - It is the main thing missing for me
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Sketches, screenshots or examples
+      description: Another app that does it well, a mock-up, or anything else. Drag images straight into this box.
